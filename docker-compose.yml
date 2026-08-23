@@ -1,0 +1,19 @@
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: nativql
+      POSTGRES_PASSWORD: nativql
+      POSTGRES_DB: nativql_test
+    ports:
+      - "55432:5432"
+  mysql:
+    image: mysql:8
+    environment:
+      MYSQL_ROOT_PASSWORD: nativql
+      MYSQL_USER: nativql
+      MYSQL_PASSWORD: nativql
+      MYSQL_DATABASE: nativql_test
+    ports:
+      - "53306:3306"
+    command: --mysql_native_password=ON
