@@ -30,7 +30,12 @@ public final class PostgresDriver: DatabaseDriver, @unchecked Sendable {
     /// connection with identical settings).
     private var cachedConfiguration: PostgresConnection.Configuration?
 
-    private let logger = Logger(label: "nativql.postgres-driver")
+    /// Internal so same-module extensions (`Introspection.swift`) reuse the
+    /// session-scoped logger.
+    let logger = Logger(label: "nativql.postgres-driver")
+
+    /// Live connection for same-module extensions; `nil` while disconnected.
+    var activeConnection: PostgresConnection? { self.connection }
 
     public init() {}
 
@@ -174,6 +179,11 @@ public final class PostgresDriver: DatabaseDriver, @unchecked Sendable {
     ///
     /// The result reports the LAST row-producing statement's columns+rows and
     /// the accumulated affected rows of all INSERT/UPDATE/DELETE tags.
+    ///
+    /// Known gap: `WITH`-led DML (`WITH … INSERT/UPDATE/DELETE`) is classified
+    /// as `.other` by the type detector, routes through the row-sequence
+    /// transport, and therefore misses command tags (contributes no affected
+    /// rows).
     public func execute(_ sql: String) async throws -> QueryResult {
         guard let connection = self.connection else {
             throw DriverError.connectionFailed("Not connected")
@@ -304,27 +314,7 @@ public final class PostgresDriver: DatabaseDriver, @unchecked Sendable {
         // Implemented in Batch 2 Task D together with the control connection.
     }
 
-    // MARK: - Introspection (Task C)
-
-    public func listDatabases() async throws -> [DatabaseInfo] {
-        throw DriverError.unsupportedFeature("listDatabases() is implemented in Batch 2 Task C")
-    }
-
-    public func listTables(database: String, schema: String?) async throws -> [TableInfo] {
-        throw DriverError.unsupportedFeature("listTables(database:schema:) is implemented in Batch 2 Task C")
-    }
-
-    public func listColumns(_ table: TableRef) async throws -> [ColumnInfo] {
-        throw DriverError.unsupportedFeature("listColumns(_:) is implemented in Batch 2 Task C")
-    }
-
-    public func primaryKey(of table: TableRef) async throws -> [String]? {
-        throw DriverError.unsupportedFeature("primaryKey(of:) is implemented in Batch 2 Task C")
-    }
-
-    public func tableDDL(_ table: TableRef) async throws -> String {
-        throw DriverError.unsupportedFeature("tableDDL(_:) is implemented in Batch 2 Task C")
-    }
+    // MARK: - Introspection (Task C — see Introspection.swift)
 
     // MARK: - Browsing & plans (Task D)
 

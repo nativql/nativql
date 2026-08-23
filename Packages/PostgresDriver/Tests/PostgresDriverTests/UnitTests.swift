@@ -284,6 +284,26 @@ extension Int16 {
     var bigEndianBytes: [UInt8] { withUnsafeBytes(of: bigEndian) { [UInt8]($0) } }
 }
 
+/// Pure identifier quoting — no connection required.
+final class IdentifierQuotingUnitTests: XCTestCase {
+    func testQuotesPlainIdentifier() {
+        XCTAssertEqual(IdentifierQuoting.quote("users"), "\"users\"")
+        XCTAssertEqual(IdentifierQuoting.quote("b2c_test"), "\"b2c_test\"")
+    }
+
+    func testDoublesEmbeddedQuotes() {
+        XCTAssertEqual(IdentifierQuoting.quote("we\"ird"), "\"we\"\"ird\"")
+        XCTAssertEqual(IdentifierQuoting.quote("\""), "\"\"\"\"")
+    }
+
+    func testPreservesCaseSpacesAndSpecials() {
+        XCTAssertEqual(IdentifierQuoting.quote("MixedCase"), "\"MixedCase\"")
+        XCTAssertEqual(IdentifierQuoting.quote("with space"), "\"with space\"")
+        XCTAssertEqual(IdentifierQuoting.quote("order"), "\"order\"")
+        XCTAssertEqual(IdentifierQuoting.quote(""), "\"\"")
+    }
+}
+
 extension Int32 {
     var bigEndianBytes: [UInt8] { withUnsafeBytes(of: bigEndian) { [UInt8]($0) } }
 }
