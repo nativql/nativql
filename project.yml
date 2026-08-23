@@ -1,0 +1,50 @@
+name: NativQL
+options:
+  bundleIdPrefix: dev.nativql
+  deploymentTarget:
+    macOS: "14.0"
+  createIntermediateGroups: true
+packages:
+  NativQLKit:
+    path: Packages/NativQLKit
+  PostgresDriver:
+    path: Packages/PostgresDriver
+  MySQLDriver:
+    path: Packages/MySQLDriver
+settings:
+  base:
+    SWIFT_VERSION: "5.10"
+targets:
+  NativQL:
+    type: application
+    platform: macOS
+    sources:
+      - NativQL
+    dependencies:
+      - package: NativQLKit
+      - package: PostgresDriver
+      - package: MySQLDriver
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.nativql.app
+        MARKETING_VERSION: "0.1.0"
+        GENERATE_INFOPLIST_FILE: true
+        CODE_SIGN_STYLE: Automatic
+        ENABLE_HARDENED_RUNTIME: true
+        INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.developer-tools
+  NativQLTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - NativQLTests
+    dependencies:
+      - target: NativQL
+schemes:
+  NativQL:
+    build:
+      targets:
+        NativQL: all
+        NativQLTests: [test]
+    test:
+      targets:
+        - NativQLTests
