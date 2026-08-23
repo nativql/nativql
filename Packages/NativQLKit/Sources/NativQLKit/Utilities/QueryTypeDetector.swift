@@ -24,6 +24,7 @@ public enum QueryTypeDetector {
 
     /// Removes -- and /* */ comments while preserving string literals.
     /// Reuses SQLStatementSplitter.scanQuoted so both stay consistent.
+    /// Does not strip $$ dollar-quoted bodies; classification reads their first word if a statement starts with one.
     static func stripComments(_ sql: String) -> String {
         let chars = Array(sql)
         var out = ""

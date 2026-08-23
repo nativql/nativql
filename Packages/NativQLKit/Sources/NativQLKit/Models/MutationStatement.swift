@@ -1,5 +1,5 @@
 /// Built by the app's row-operations layer using ANSI `?` placeholders;
-/// drivers bind `bindings` positionally and execute transactionally.
+/// drivers bind `batches` positionally and execute transactionally.
 public struct MutationStatement: Sendable {
     public enum Kind: String, Sendable {
         case update, insert, delete

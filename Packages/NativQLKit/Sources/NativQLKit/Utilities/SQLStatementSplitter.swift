@@ -4,7 +4,10 @@
 ///
 /// Limitations: backslash escapes inside strings are honored (MySQL-style);
 /// PostgreSQL standard-conforming strings are unaffected except for the
-/// pathological trailing-backslash-before-quote case.
+/// pathological trailing-backslash-before-quote case. Dollar-quote tags of
+/// digits only (e.g. "$1$") are treated as quoting delimiters here, whereas
+/// PostgreSQL reserves those for positional parameters — such input is
+/// already invalid PG SQL, so this only affects pathological scripts.
 public enum SQLStatementSplitter {
     public static func split(_ sql: String) -> [String] {
         let chars = Array(sql)

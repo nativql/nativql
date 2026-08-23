@@ -7,6 +7,8 @@ services:
       POSTGRES_DB: nativql_test
     ports:
       - "55432:5432"
+  # NOTE: "mysql:8" floats (currently 8.4). If bumped to 9.x later,
+  # --mysql_native_password=ON must be removed/adjusted.
   mysql:
     image: mysql:8
     environment:
