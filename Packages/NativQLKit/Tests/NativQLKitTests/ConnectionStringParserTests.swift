@@ -35,7 +35,19 @@ final class ConnectionStringParserTests: XCTestCase {
     }
 
     func testRejectsUnknownScheme() {
-        XCTAssertThrowsError(try ConnectionStringParser.parse("sqlite:///tmp/db.sqlite"))
+        XCTAssertThrowsError(
+            try ConnectionStringParser.parse("sqlite://localhost/tmp/db.sqlite")
+        ) { error in
+            XCTAssertEqual(
+                error as? ConnectionStringParserError,
+                .unsupportedScheme("sqlite")
+            )
+        }
+    }
+
+    func testPlusSignInPasswordStaysLiteral() throws {
+        let config = try ConnectionStringParser.parse("mysql://u:pa%2Bss%2Bmore@h.example.com/db")
+        XCTAssertEqual(config.password, "pa+ss+more")
     }
 
     func testRejectsGarbage() {

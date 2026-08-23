@@ -7,7 +7,8 @@ public enum ConnectionStringParserError: Error, Equatable {
 
 public enum ConnectionStringParser {
     public static func parse(_ raw: String) throws -> ConnectionConfig {
-        guard let url = URL(string: raw.trimmingCharacters(in: .whitespaces)),
+        let trimmed = raw.trimmingCharacters(in: .whitespaces)
+        guard let url = URL(string: trimmed),
               let scheme = url.scheme?.lowercased(),
               let host = url.host, !host.isEmpty else {
             throw ConnectionStringParserError.invalidURL(raw)
@@ -36,7 +37,8 @@ public enum ConnectionStringParser {
             database: database
         )
 
-        if let queryItems = URLComponents(string: raw)?.queryItems {
+        if let components = URLComponents(string: trimmed),
+           let queryItems = components.queryItems {
             if let mode = queryItems.first(where: { $0.name == "sslmode" })?.value,
                let ssl = SSLMode(rawValue: mode) {
                 config.sslMode = ssl
@@ -46,6 +48,6 @@ public enum ConnectionStringParser {
     }
 
     private static func decodePercentEscapes(_ s: String) -> String {
-        s.replacingOccurrences(of: "+", with: " ").removingPercentEncoding ?? s
+        s.removingPercentEncoding ?? s
     }
 }
