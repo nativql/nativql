@@ -7,7 +7,6 @@ public enum JSONExporter {
         for row in rows {
             var obj: [String: Any] = [:]
             for (i, col) in columns.enumerated() where i < row.count {
-                if case .null = row[i] { continue }
                 obj[col.name] = jsonObject(row[i])
             }
             objects.append(obj)
