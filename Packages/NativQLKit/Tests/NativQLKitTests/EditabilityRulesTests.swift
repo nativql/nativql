@@ -41,11 +41,17 @@ final class EditabilityRulesTests: XCTestCase {
             source: .query(singleTable: true, usesAggregation: true),
             hasPrimaryKey: true
         )
-        XCTAssertTrue(isReadOnly(decision))
+        XCTAssertEqual(
+            decision,
+            .readOnly(reason: "Only single-table queries without joins or aggregation are editable.")
+        )
     }
 
-    private func isReadOnly(_ d: EditabilityDecision) -> Bool {
-        if case .readOnly = d { return true }
-        return false
+    func testSingleTableQueryWithoutPKIsLocked() {
+        let decision = EditabilityRules.evaluate(
+            source: .query(singleTable: true, usesAggregation: false),
+            hasPrimaryKey: false
+        )
+        XCTAssertEqual(decision, .readOnly(reason: "Underlying table has no primary key."))
     }
 }
