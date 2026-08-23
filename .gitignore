@@ -16,3 +16,6 @@ Packages/*/.build/
 
 # Secrets / local env
 .env
+
+# Worktrees
+.worktrees/
