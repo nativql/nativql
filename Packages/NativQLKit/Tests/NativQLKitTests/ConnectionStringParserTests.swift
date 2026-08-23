@@ -50,6 +50,11 @@ final class ConnectionStringParserTests: XCTestCase {
         XCTAssertEqual(config.password, "pa+ss+more")
     }
 
+    func testLiteralPlusSignInPasswordIsNotDecodedAsSpace() throws {
+        let config = try ConnectionStringParser.parse("mysql://u:p+a@h.example.com/db")
+        XCTAssertEqual(config.password, "p+a")
+    }
+
     func testRejectsGarbage() {
         XCTAssertThrowsError(try ConnectionStringParser.parse("not a url at all"))
     }
