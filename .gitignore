@@ -11,6 +11,9 @@ build/
 .build/
 Packages/*/.build/
 
+# XcodeBuild derived data (make build)
+.derived/
+
 # Brainstorming session artifacts
 .superpowers/
 
