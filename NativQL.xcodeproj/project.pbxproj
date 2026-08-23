@@ -1,0 +1,457 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		20001A09C1A4DEFA7344F1EB /* NativQLKit in Frameworks */ = {isa = PBXBuildFile; productRef = F6338A038D70441EDADB3A16 /* NativQLKit */; };
+		4DDD8F20FACA21FE5D2FDE9E /* MySQLDriver in Frameworks */ = {isa = PBXBuildFile; productRef = 4904FE4D6986583CB52C78B0 /* MySQLDriver */; };
+		5CC225895A1AA0BCBEF49C5A /* PostgresDriver in Frameworks */ = {isa = PBXBuildFile; productRef = 54816D600B3AECA69AA056D9 /* PostgresDriver */; };
+		AD7AF14BB37E9155F1E6BA92 /* SmokeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE9F97BDAC3A1CE10014A63A /* SmokeTests.swift */; };
+		BF8D572B1FE2BBC289BE7C0D /* NativQLApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = E08BB443FDF7763932642B19 /* NativQLApp.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		6AC30A2FF2E1ACABEAA59C45 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 049AC39974AB39D12C308668 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = ED97C3E13D142E147244E082;
+			remoteInfo = NativQL;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		181179E416692E2C616FCDD5 /* NativQLTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = NativQLTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		264E9286DE39E1043FCC1B38 /* NativQLKit */ = {isa = PBXFileReference; lastKnownFileType = folder; name = NativQLKit; path = Packages/NativQLKit; sourceTree = SOURCE_ROOT; };
+		28117378309ECF9BC8605BAD /* NativQL.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = NativQL.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		6E26847049E070F5C89CFB21 /* MySQLDriver */ = {isa = PBXFileReference; lastKnownFileType = folder; name = MySQLDriver; path = Packages/MySQLDriver; sourceTree = SOURCE_ROOT; };
+		A63B4A3A6F37FCA3D46B4B38 /* PostgresDriver */ = {isa = PBXFileReference; lastKnownFileType = folder; name = PostgresDriver; path = Packages/PostgresDriver; sourceTree = SOURCE_ROOT; };
+		E08BB443FDF7763932642B19 /* NativQLApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativQLApp.swift; sourceTree = "<group>"; };
+		EE9F97BDAC3A1CE10014A63A /* SmokeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SmokeTests.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		C1E03FB9C46A31A11E536AFA /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				20001A09C1A4DEFA7344F1EB /* NativQLKit in Frameworks */,
+				5CC225895A1AA0BCBEF49C5A /* PostgresDriver in Frameworks */,
+				4DDD8F20FACA21FE5D2FDE9E /* MySQLDriver in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		0CB863D3EF32DB749EE99EAE = {
+			isa = PBXGroup;
+			children = (
+				AC02FA201B80CAC69DDBBE86 /* NativQL */,
+				D88B503CD5DC183F324C9FF2 /* NativQLTests */,
+				548DA68C725BD1E9035BEB66 /* Packages */,
+				1EF144206F146AFCB8B99330 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		1EF144206F146AFCB8B99330 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				28117378309ECF9BC8605BAD /* NativQL.app */,
+				181179E416692E2C616FCDD5 /* NativQLTests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		548DA68C725BD1E9035BEB66 /* Packages */ = {
+			isa = PBXGroup;
+			children = (
+				6E26847049E070F5C89CFB21 /* MySQLDriver */,
+				264E9286DE39E1043FCC1B38 /* NativQLKit */,
+				A63B4A3A6F37FCA3D46B4B38 /* PostgresDriver */,
+			);
+			path = Packages;
+			sourceTree = "<group>";
+		};
+		AC02FA201B80CAC69DDBBE86 /* NativQL */ = {
+			isa = PBXGroup;
+			children = (
+				E08BB443FDF7763932642B19 /* NativQLApp.swift */,
+			);
+			path = NativQL;
+			sourceTree = "<group>";
+		};
+		D88B503CD5DC183F324C9FF2 /* NativQLTests */ = {
+			isa = PBXGroup;
+			children = (
+				EE9F97BDAC3A1CE10014A63A /* SmokeTests.swift */,
+			);
+			path = NativQLTests;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		77CE919E4D3D00B255BB2E1E /* NativQLTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 6ADD21CCAB682AD1248F58F0 /* Build configuration list for PBXNativeTarget "NativQLTests" */;
+			buildPhases = (
+				70AF4651448DFF520CD9A3F5 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				8E3EE37584A12E0968609196 /* PBXTargetDependency */,
+			);
+			name = NativQLTests;
+			packageProductDependencies = (
+			);
+			productName = NativQLTests;
+			productReference = 181179E416692E2C616FCDD5 /* NativQLTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		ED97C3E13D142E147244E082 /* NativQL */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 2B9635ABB9F7804AD6292F7E /* Build configuration list for PBXNativeTarget "NativQL" */;
+			buildPhases = (
+				B634ABA40F8E360A70555883 /* Sources */,
+				C1E03FB9C46A31A11E536AFA /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = NativQL;
+			packageProductDependencies = (
+				F6338A038D70441EDADB3A16 /* NativQLKit */,
+				54816D600B3AECA69AA056D9 /* PostgresDriver */,
+				4904FE4D6986583CB52C78B0 /* MySQLDriver */,
+			);
+			productName = NativQL;
+			productReference = 28117378309ECF9BC8605BAD /* NativQL.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		049AC39974AB39D12C308668 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					ED97C3E13D142E147244E082 = {
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = 8DF5702F2AC894A8108FD30A /* Build configuration list for PBXProject "NativQL" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 0CB863D3EF32DB749EE99EAE;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				D12F60CE2439EDB61C92488D /* XCLocalSwiftPackageReference "Packages/MySQLDriver" */,
+				5CE1035DB161A9B5EF550938 /* XCLocalSwiftPackageReference "Packages/NativQLKit" */,
+				842B3E9C47A6E1A2B15892C6 /* XCLocalSwiftPackageReference "Packages/PostgresDriver" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 1EF144206F146AFCB8B99330 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				ED97C3E13D142E147244E082 /* NativQL */,
+				77CE919E4D3D00B255BB2E1E /* NativQLTests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		70AF4651448DFF520CD9A3F5 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AD7AF14BB37E9155F1E6BA92 /* SmokeTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B634ABA40F8E360A70555883 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				BF8D572B1FE2BBC289BE7C0D /* NativQLApp.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		8E3EE37584A12E0968609196 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = ED97C3E13D142E147244E082 /* NativQL */;
+			targetProxy = 6AC30A2FF2E1ACABEAA59C45 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		07D33D4F5649691CD6490EB4 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.developer-tools";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.nativql.app;
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
+		171F838611A76C8AEE2E74C7 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.10;
+			};
+			name = Release;
+		};
+		37297A10224217D9FAE663F8 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = dev.nativql.NativQLTests;
+				SDKROOT = macosx;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/NativQL.app/Contents/MacOS/NativQL";
+			};
+			name = Debug;
+		};
+		6015C3787CC37CE87337E0A1 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = dev.nativql.NativQLTests;
+				SDKROOT = macosx;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/NativQL.app/Contents/MacOS/NativQL";
+			};
+			name = Release;
+		};
+		B96BC6FAA9BAD74793C10F7B /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.10;
+			};
+			name = Debug;
+		};
+		CB4D07AB65D0507ED8DD6328 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.developer-tools";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.nativql.app;
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		2B9635ABB9F7804AD6292F7E /* Build configuration list for PBXNativeTarget "NativQL" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				07D33D4F5649691CD6490EB4 /* Debug */,
+				CB4D07AB65D0507ED8DD6328 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		6ADD21CCAB682AD1248F58F0 /* Build configuration list for PBXNativeTarget "NativQLTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				37297A10224217D9FAE663F8 /* Debug */,
+				6015C3787CC37CE87337E0A1 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		8DF5702F2AC894A8108FD30A /* Build configuration list for PBXProject "NativQL" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				B96BC6FAA9BAD74793C10F7B /* Debug */,
+				171F838611A76C8AEE2E74C7 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		5CE1035DB161A9B5EF550938 /* XCLocalSwiftPackageReference "Packages/NativQLKit" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/NativQLKit;
+		};
+		842B3E9C47A6E1A2B15892C6 /* XCLocalSwiftPackageReference "Packages/PostgresDriver" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/PostgresDriver;
+		};
+		D12F60CE2439EDB61C92488D /* XCLocalSwiftPackageReference "Packages/MySQLDriver" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/MySQLDriver;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		4904FE4D6986583CB52C78B0 /* MySQLDriver */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = MySQLDriver;
+		};
+		54816D600B3AECA69AA056D9 /* PostgresDriver */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = PostgresDriver;
+		};
+		F6338A038D70441EDADB3A16 /* NativQLKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = NativQLKit;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = 049AC39974AB39D12C308668 /* Project object */;
+}
