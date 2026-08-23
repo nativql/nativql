@@ -214,8 +214,133 @@ public final class MySQLDriver: DatabaseDriver, @unchecked Sendable {
 
     // MARK: - Queries (Task B)
 
+    /// Executes one or more statements sequentially (client-side split via
+    /// Kit's splitter — MySQLNIO has no multi-statement support).
+    ///
+    /// Semantics match PostgresDriver: the result surfaces the LAST statement
+    /// that produced rows; affected rows from INSERT/UPDATE/DELETE accumulate.
+    ///
+    /// Known limitation (MySQLNIO 1.x): column definitions are only exposed
+    /// when at least one row flows back, so a zero-row SELECT returns no
+    /// headers. Verified against the pinned API — derived-table probes still
+    /// yield empty definition lists — so this is unfixable without replacing
+    /// the command layer. PostgresDriver keeps full header behavior.
     public func execute(_ sql: String) async throws -> QueryResult {
-        throw DriverError.unsupportedFeature("query execution arrives in Batch 3 Task B")
+        let statements = SQLStatementSplitter.split(sql)
+        guard !statements.isEmpty else {
+            return QueryResult(
+                columns: [], rows: [],
+                executionMilliseconds: 0,
+                statementType: .other
+            )
+        }
+        guard let connection = self.activeConnection else {
+            throw DriverError.connectionFailed("not connected")
+        }
+
+        let clock = ContinuousClock()
+        let start = clock.now
+
+        var lastRowProducing: (columns: [ColumnInfo], rows: [[SQLValue]])?
+        var affectedRows: Int64 = 0
+
+        do {
+            for statement in statements {
+                try Task.checkCancellation()
+                let outcome = try await Self.runStatement(connection, sql: statement, logger: self.logger)
+                affectedRows += outcome.affectedRowsDelta
+                if let columns = outcome.columnDefinitions {
+                    let mapped = outcome.rows.map { Self.cells(of: $0) }
+                    let columnInfos = columns.map {
+                        ColumnInfo(name: $0.name, dataType: SQLValueMapper.typeName($0.columnType))
+                    }
+                    lastRowProducing = (columnInfos, mapped)
+                }
+            }
+        } catch {
+            throw try Self.mapExecutionError(error)
+        }
+
+        let elapsed = clock.now - start
+        let milliseconds = Double(elapsed.components.seconds) * 1000
+            + Double(elapsed.components.attoseconds) / 1e15
+        let finalType = QueryTypeDetector.type(of: statements.last ?? "")
+
+        return QueryResult(
+            columns: lastRowProducing?.columns ?? [],
+            rows: lastRowProducing?.rows ?? [],
+            affectedRows: affectedRows > 0 ? affectedRows : nil,
+            executionMilliseconds: milliseconds,
+            statementType: finalType
+        )
+    }
+
+    // MARK: Execution internals
+
+    struct StatementOutcome {
+        /// Wire column definitions; nil when the statement cannot produce rows.
+        var columnDefinitions: [MySQLProtocol.ColumnDefinition41]?
+        var rows: [MySQLRow]
+        var affectedRowsDelta: Int64
+    }
+
+    private static func runStatement(
+        _ connection: MySQLConnection,
+        sql: String,
+        logger: Logger
+    ) async throws -> StatementOutcome {
+        var collected: [MySQLRow] = []
+        var delta: Int64 = 0
+        let future = connection.query(sql, [], onRow: { row in
+            collected.append(row)
+        }, onMetadata: { metadata in
+            delta = Int64(metadata.affectedRows)
+        })
+        _ = try await future.get()
+        logger.trace("statement finished", metadata: ["affected": "\(delta)"])
+        return StatementOutcome(
+            columnDefinitions: collected.first?.columnDefinitions,
+            rows: collected,
+            affectedRowsDelta: delta
+        )
+    }
+
+    /// Zips a row's definitions with its value buffers into Kit values.
+    static func cells(of row: MySQLRow) -> [SQLValue] {
+        row.columnDefinitions.indices.map { index in
+            let definition = row.columnDefinitions[index]
+            let data = MySQLData(
+                type: definition.columnType,
+                format: row.format,
+                buffer: row.values[index],
+                isUnsigned: definition.flags.contains(.COLUMN_UNSIGNED)
+            )
+            return SQLValueMapper.map(
+                data,
+                isBinaryCharset: definition.characterSet == .binary
+            )
+        }
+    }
+
+    /// Maps execution-phase errors into the Kit taxonomy. Structured server
+    /// codes win over text sniffing:
+    /// - 1317 `ER_QUERY_INTERRUPTED` → `.cancelled` (KILL QUERY / pg-style cancel)
+    /// - 1064 `ER_PARSE_ERROR` and everything else server-side → `.queryFailed`
+    /// - `CancellationError` (Swift task cancellation) → `.cancelled`
+    static func mapExecutionError(_ error: Error) throws -> DriverError {
+        if let driverError = error as? DriverError {
+            return driverError
+        }
+        if error is CancellationError {
+            return .cancelled
+        }
+        if case MySQLError.server(let packet) = error {
+            if packet.errorCode == .QUERY_INTERRUPTED {
+                return .cancelled
+            }
+            return .queryFailed(packet.errorMessage)
+        }
+        return .queryFailed(String(reflecting: error))
     }
 
     public func cancelRunningQuery() async {

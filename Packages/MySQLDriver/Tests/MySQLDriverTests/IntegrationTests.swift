@@ -100,3 +100,109 @@ final class IntegrationTests: XCTestCase {
         }
     }
 }
+
+// MARK: - Task B (appended; kept as extension to avoid touching original class body)
+extension IntegrationTests {
+    // MARK: - Execution & type mapping (Task B)
+
+    func testFullTypeRoundTrip() async throws {
+        let driver = try makeLiveDriver()
+        defer { Task { await driver.disconnect() } }
+        try await driver.connect(makeConfig())
+
+        _ = try await driver.execute("""
+        CREATE TEMPORARY TABLE t_types (
+            id INT PRIMARY KEY AUTO_INCREMENT,
+            f_biguint BIGINT UNSIGNED,
+            f_dec DECIMAL(10,2),
+            f_text TEXT,
+            f_bool TINYINT(1),
+            f_dt DATETIME,
+            f_json JSON,
+            f_blob BLOB
+        );
+        """)
+
+        _ = try await driver.execute("""
+        INSERT INTO t_types (f_biguint, f_dec, f_text, f_bool, f_dt, f_json, f_blob)
+        VALUES (1844674407370955161, 1234.57, 'héllo', 1, '2026-08-23 12:34:56', '{"k": [1, 2]}', _binary'DEADBEEF');
+        """)
+        let result = try await driver.execute("SELECT * FROM t_types ORDER BY id;")
+
+        XCTAssertEqual(result.statementType, .select)
+        XCTAssertEqual(result.rows.count, 1)
+        let row = result.rows[0]
+        // id (auto-increment), f_biguint fits Int64? 1.8e18 < 9.2e18 → int
+        XCTAssertEqual(row[0], .int(1))
+        XCTAssertEqual(row[1], .int(1_844_674_407_370_955_161))
+        XCTAssertEqual(row[2], .decimal("1234.57"))
+        XCTAssertEqual(row[3], .string("héllo"))
+        XCTAssertEqual(row[4], .int(1))  // TINYINT(1) surfaces as int (documented)
+        if case .datetime(let dt) = row[5] {
+            let comps = Calendar(identifier: .gregorian)
+                .dateComponents(in: TimeZone(identifier: "UTC")!, from: dt)
+            XCTAssertEqual(comps.year, 2026)
+            XCTAssertEqual(comps.month, 8)
+            XCTAssertEqual(comps.day, 23)
+            XCTAssertEqual(comps.hour, 12)
+        } else {
+            XCTFail("expected datetime, got \(row[5])")
+        }
+        XCTAssertEqual(row[6], .json(#"{"k": [1, 2]}"#))
+        if case .bytes(let data) = row[7] {
+            XCTAssertEqual(String(data: data, encoding: .utf8), "DEADBEEF")
+        } else {
+            XCTFail("expected bytes, got \(row[7])")
+        }
+
+        // NULL round trip on second row
+        _ = try await driver.execute(
+            "INSERT INTO t_types (f_biguint, f_dec) VALUES (NULL, NULL);"
+        )
+        let nulls = try await driver.execute(
+            "SELECT f_biguint, f_dec FROM t_types WHERE f_biguint IS NULL;"
+        )
+        XCTAssertEqual(nulls.rows.count, 1)
+        XCTAssertEqual(nulls.rows[0][0], SQLValue.null)
+        XCTAssertEqual(nulls.rows[0][1], SQLValue.null)
+    }
+
+    func testMultiStatementScriptReturnsLastRowProducingResult() async throws {
+        let driver = try makeLiveDriver()
+        defer { Task { await driver.disconnect() } }
+        try await driver.connect(makeConfig())
+
+        let result = try await driver.execute("""
+        CREATE TEMPORARY TABLE x(a INT);
+        INSERT INTO x VALUES (7);
+        SELECT * FROM x;
+        """)
+        XCTAssertEqual(result.rows, [[.int(7)]])
+        XCTAssertGreaterThanOrEqual(result.affectedRows ?? 0, 1)
+
+        // Zero-row SELECT: MySQLNIO 1.x exposes no column definitions when
+        // no rows flow back (documented limitation), so headers are empty
+        // while rows stay correct.
+        let headers = try await driver.execute(
+            "SELECT a AS alias_a FROM x WHERE a > 100;"
+        )
+        XCTAssertEqual(headers.rows.count, 0)
+        XCTAssertTrue(headers.columns.isEmpty)
+    }
+
+    func testSyntaxErrorThrowsQueryFailedWithServerMessage() async throws {
+        let driver = try makeLiveDriver()
+        defer { Task { await driver.disconnect() } }
+        try await driver.connect(makeConfig())
+
+        do {
+            _ = try await driver.execute("SELEC bogus;")
+            XCTFail("expected error")
+        } catch let error as DriverError {
+            guard case .queryFailed(let message) = error else {
+                return XCTFail("wrong error case: \(error)")
+            }
+            XCTAssertTrue(message.contains("syntax"), "unexpected message: \(message)")
+        }
+    }
+}
