@@ -27,4 +27,16 @@ final class JSONExporterTests: XCTestCase {
         let parsed = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(json.utf8)) as? [[String: Any]])
         XCTAssertTrue(parsed[0]["b"] is NSNull)
     }
+
+    func testNonFiniteDoublesExportAsStringNotCollapsingExport() throws {
+        let json = JSONExporter.export(
+            columns: [ColumnInfo(name: "v", dataType: "float8")],
+            rows: [[.double(.nan)], [.double(.infinity)], [.double(1.5)]]
+        )
+        let parsed = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(json.utf8)) as? [[String: Any]])
+        XCTAssertEqual(parsed.count, 3)
+        XCTAssertEqual(parsed[0]["v"] as? String, "nan")
+        XCTAssertEqual(parsed[1]["v"] as? String, "inf")
+        XCTAssertEqual(parsed[2]["v"] as? Double, 1.5)
+    }
 }

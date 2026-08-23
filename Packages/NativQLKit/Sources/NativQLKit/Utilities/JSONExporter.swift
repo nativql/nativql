@@ -1,6 +1,9 @@
 import Foundation
 
 public enum JSONExporter {
+    /// Exports rows as a JSON array of objects, one object per row.
+    /// Duplicate column names collapse (last one wins); non-finite doubles
+    /// (NaN, ±inf) are exported as their string form to keep output valid JSON.
     public static func export(columns: [ColumnInfo], rows: [[SQLValue]]) -> String {
         var objects: [[String: Any]] = []
         objects.reserveCapacity(rows.count)
@@ -24,7 +27,8 @@ public enum JSONExporter {
         case .null: return NSNull()
         case .bool(let b): return b
         case .int(let i): return NSNumber(value: i)
-        case .double(let d): return NSNumber(value: d)
+        case .double(let d):
+            return d.isFinite ? NSNumber(value: d) : String(d)
         case .decimal(let s): return s
         case .string(let s): return s
         case .date(let d): return CSVExporter.dateFormatter.string(from: d)

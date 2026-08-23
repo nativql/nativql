@@ -29,7 +29,7 @@ public enum CSVExporter {
     }
 
     private static func escape(_ field: String) -> String {
-        if field.contains(",") || field.contains("\"") || field.contains("\n") {
+        if field.contains(",") || field.contains("\"") || field.contains("\n") || field.contains("\r") {
             return "\"" + field.replacingOccurrences(of: "\"", with: "\"\"") + "\""
         }
         return field
