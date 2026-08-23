@@ -162,8 +162,142 @@ public final class PostgresDriver: DatabaseDriver, @unchecked Sendable {
 
     // MARK: - Queries (Task B)
 
+    /// Executes one or more statements sequentially on the live connection.
+    ///
+    /// Per-statement transport (PostgresNIO 1.x reality):
+    /// - INSERT/UPDATE/DELETE go through the `EventLoopFuture` query API,
+    ///   the only surface exposing the command tag (`PostgresQueryMetadata`)
+    ///   needed for affected-row counts. `INSERT … RETURNING` still keeps its
+    ///   rows because that API collects them too.
+    /// - Everything else goes through the async row-sequence API, whose
+    ///   `.columns` survives zero-row results (empty grids keep headers).
+    ///
+    /// The result reports the LAST row-producing statement's columns+rows and
+    /// the accumulated affected rows of all INSERT/UPDATE/DELETE tags.
     public func execute(_ sql: String) async throws -> QueryResult {
-        throw DriverError.unsupportedFeature("execute() is implemented in Batch 2 Task B")
+        guard let connection = self.connection else {
+            throw DriverError.connectionFailed("Not connected")
+        }
+
+        let statements = SQLStatementSplitter.split(sql)
+        guard !statements.isEmpty else {
+            return QueryResult(
+                columns: [],
+                rows: [],
+                executionMilliseconds: 0,
+                statementType: .other
+            )
+        }
+
+        let clock = ContinuousClock()
+        let start = clock.now
+
+        var totalAffectedRows: Int64?
+        var lastColumns: [ColumnInfo]?
+        var lastRows: [[SQLValue]] = []
+
+        do {
+            for statement in statements {
+                if Task.isCancelled { throw CancellationError() }
+                let outcome = try await Self.runStatement(statement, on: connection, logger: self.logger)
+                if let affected = outcome.affectedRows {
+                    totalAffectedRows = (totalAffectedRows ?? 0) + affected
+                }
+                if !(outcome.columns.isEmpty && outcome.rows.isEmpty) {
+                    lastColumns = outcome.columns
+                    lastRows = outcome.rows
+                }
+            }
+        } catch {
+            throw Self.mapExecutionError(error)
+        }
+
+        let elapsed = clock.now - start
+        let milliseconds = Double(elapsed.components.seconds) * 1_000
+            + Double(elapsed.components.attoseconds) / 1e15
+
+        return QueryResult(
+            columns: lastColumns ?? [],
+            rows: lastRows,
+            affectedRows: totalAffectedRows,
+            executionMilliseconds: max(0, milliseconds),
+            statementType: QueryTypeDetector.type(of: statements.last!)
+        )
+    }
+
+    private struct StatementOutcome {
+        var columns = [ColumnInfo]()
+        var rows = [[SQLValue]]()
+        var affectedRows: Int64?
+    }
+
+    /// Runs one statement on the given connection using the transport that
+    /// fits its detected kind (see ``execute(_:)``).
+    private static func runStatement(
+        _ sql: String,
+        on connection: PostgresConnection,
+        logger: Logger
+    ) async throws -> StatementOutcome {
+        switch QueryTypeDetector.type(of: sql) {
+        case .insert, .update, .delete:
+            let query = PostgresQuery(unsafeSQL: sql)
+            // Typed annotation pins the EventLoopFuture overload — the only
+            // one surfacing the command tag.
+            let result: PostgresQueryResult = try await connection.query(query, logger: logger).get()
+
+            var outcome = StatementOutcome()
+            if ["INSERT", "UPDATE", "DELETE"].contains(result.metadata.command),
+               let rowCount = result.metadata.rows {
+                outcome.affectedRows = Int64(rowCount)
+            }
+            outcome.rows = try result.rows.map { row in try row.map { try SQLValueMapper.map($0) } }
+            // Column metadata only exists here when RETURNING produced cells;
+            // empty DML legitimately has none.
+            if let firstRow = result.rows.first {
+                outcome.columns = firstRow.map { cell in
+                    ColumnInfo(name: cell.columnName, dataType: SQLValueMapper.typeName(for: cell.dataType))
+                }
+            }
+            return outcome
+
+        default:
+            let sequence = try await connection.query(PostgresQuery(unsafeSQL: sql), logger: logger)
+            var outcome = StatementOutcome()
+            outcome.columns = sequence.columns.map { column in
+                ColumnInfo(name: column.name, dataType: SQLValueMapper.typeName(for: column.dataType))
+            }
+            var rows = [[SQLValue]]()
+            for try await row in sequence {
+                rows.append(try row.map { try SQLValueMapper.map($0) })
+            }
+            outcome.rows = rows
+            return outcome
+        }
+    }
+
+    /// Maps execution failures into the Kit taxonomy. Structured `PSQLError`
+    /// codes win over text sniffing; server-provided message/detail/hint are
+    /// surfaced verbatim so users see PostgreSQL's own diagnostics.
+    static func mapExecutionError(_ error: Error) -> DriverError {
+        if error is CancellationError {
+            return .cancelled
+        }
+        if let psql = error as? PSQLError {
+            if psql.code == .queryCancelled {
+                return .cancelled
+            }
+            if psql.code == .server, let info = psql.serverInfo {
+                var parts: [String] = []
+                if let message = info[.message] { parts.append(message) }
+                if let detail = info[.detail] { parts.append(detail) }
+                if let hint = info[.hint] { parts.append(hint) }
+                if !parts.isEmpty {
+                    return .queryFailed(parts.joined(separator: "\n"))
+                }
+            }
+            return .queryFailed(String(reflecting: error))
+        }
+        return .queryFailed(String(reflecting: error))
     }
 
     public func cancelRunningQuery() async {
