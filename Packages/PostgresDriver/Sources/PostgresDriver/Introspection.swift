@@ -198,6 +198,82 @@ extension PostgresDriver {
         """
     }
 
+    // MARK: - Row browsing (Task D)
+
+    /// Reads one window of rows from a table (or view).
+    ///
+    /// Identifiers travel through `IdentifierQuoting`; the numeric LIMIT/OFFSET
+    /// are validated integers interpolated directly. The total count comes
+    /// from the same `pg_class.reltuples` estimate ``listTables(database:schema:)``
+    /// uses — best effort (`nil` when the relation is unknown).
+    func browseRowsImpl(
+        _ table: TableRef,
+        sort: SortSpec?,
+        limit: Int,
+        offset: Int
+    ) async throws -> RowPage {
+        guard limit > 0 else {
+            throw DriverError.queryFailed("limit must be greater than 0")
+        }
+        guard offset >= 0 else {
+            throw DriverError.queryFailed("offset must be ≥ 0")
+        }
+
+        let schema = Self.resolvedSchemaName(for: table)
+        var sql = "SELECT * FROM \(IdentifierQuoting.quote(schema)).\(IdentifierQuoting.quote(table.name))"
+        if let sort {
+            let direction = sort.ascending ? "ASC" : "DESC"
+            sql += " ORDER BY \(IdentifierQuoting.quote(sort.columnName)) \(direction)"
+        }
+        sql += " LIMIT \(limit) OFFSET \(offset)"
+
+        guard let connection = self.activeConnection else {
+            throw DriverError.connectionFailed("Not connected")
+        }
+
+        do {
+            let sequence = try await connection.query(PostgresQuery(unsafeSQL: sql), logger: self.logger)
+            let columns = sequence.columns.map { column in
+                ColumnInfo(name: column.name, dataType: SQLValueMapper.typeName(for: column.dataType))
+            }
+            var rows = [[SQLValue]]()
+            for try await row in sequence {
+                try Task.checkCancellation()
+                rows.append(try row.map { try SQLValueMapper.map($0) })
+            }
+            return RowPage(
+                columns: columns,
+                rows: rows,
+                totalCountEstimate: try await self.rowCountEstimate(schema: schema, name: table.name)
+            )
+        } catch {
+            throw Self.mapExecutionError(error)
+        }
+    }
+
+    /// Best-effort live-tuple estimate from `pg_class.reltuples` for one
+    /// relation; `nil` when no such table/view/matview exists.
+    private func rowCountEstimate(schema: String, name: String) async throws -> Int64? {
+        var binds = PostgresBindings()
+        binds.append(schema)
+        binds.append(name)
+
+        let estimates = try await fetch(
+            """
+            SELECT GREATEST(c.reltuples, 0)::float8
+            FROM pg_class c
+            JOIN pg_namespace n ON n.oid = c.relnamespace
+            WHERE n.nspname = $1
+              AND c.relname = $2
+              AND c.relkind IN ('r', 'v', 'm')
+            """,
+            bindings: binds
+        ) { row in
+            Int64(try row[0].decode(Double.self).rounded())
+        }
+        return estimates.first
+    }
+
     // MARK: - Internals
 
     private struct DDLColumn {

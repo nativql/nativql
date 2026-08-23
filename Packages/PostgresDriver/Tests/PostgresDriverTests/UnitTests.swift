@@ -311,3 +311,182 @@ extension Int32 {
 extension Int64 {
     var bigEndianBytes: [UInt8] { withUnsafeBytes(of: bigEndian) { [UInt8]($0) } }
 }
+
+/// Pure EXPLAIN (FORMAT JSON) parsing against realistic PG-shaped fixtures.
+final class ExplainParserUnitTests: XCTestCase {
+    /// Nested Loop root with a Seq Scan (outer, filtered) and an Index Scan
+    /// (inner, index-cond driven) child — the shape real ANALYZE plans emit.
+    private static let nestedFixture = """
+    [
+      {
+        "Plan": {
+          "Node Type": "Nested Loop",
+          "Join Type": "Inner",
+          "Inner Unique": true,
+          "Join Filter": "(u.id = o.user_id)",
+          "Rows Removed by Join Filter": 2,
+          "Actual Rows": 3,
+          "Actual Loops": 1,
+          "Actual Total Time": 0.245,
+          "Shared Hit Blocks": 8,
+          "Plans": [
+            {
+              "Node Type": "Seq Scan",
+              "Parent Relationship": "Outer",
+              "Relation Name": "users",
+              "Alias": "u",
+              "Filter": "(age > 21)",
+              "Rows Removed by Filter": 4,
+              "Actual Rows": 5,
+              "Actual Loops": 1,
+              "Actual Total Time": 0.112
+            },
+            {
+              "Node Type": "Index Scan",
+              "Parent Relationship": "Inner",
+              "Scan Direction": "Forward",
+              "Index Name": "orders_user_id_idx",
+              "Relation Name": "orders",
+              "Alias": "o",
+              "Index Cond": "(user_id = u.id)",
+              "Actual Rows": 3,
+              "Actual Loops": 5,
+              "Actual Total Time": 0.087
+            }
+          ]
+        },
+        "Planning Time": 0.183,
+        "Execution Time": 0.402
+      }
+    ]
+    """
+
+    func testParsesRootOperationAndActuals() throws {
+        let plan = try ExplainParser.parse(Self.nestedFixture)
+        XCTAssertEqual(plan.operation, "Nested Loop")
+        XCTAssertEqual(plan.actualRows, 3)
+        XCTAssertEqual(plan.actualTimeMilliseconds!, 0.245, accuracy: 1e-9)
+    }
+
+    func testJoinsNonNullDetailInfoInStableOrder() throws {
+        let plan = try ExplainParser.parse(Self.nestedFixture)
+        XCTAssertEqual(
+            plan.detail,
+            "Join Filter: (u.id = o.user_id), Rows Removed by Join Filter: 2"
+        )
+    }
+
+    func testParsesChildrenRecursively() throws {
+        let plan = try ExplainParser.parse(Self.nestedFixture)
+        XCTAssertEqual(plan.children.count, 2)
+
+        let seqScan = plan.children[0]
+        XCTAssertEqual(seqScan.operation, "Seq Scan")
+        XCTAssertEqual(seqScan.actualRows, 5)
+        XCTAssertEqual(seqScan.detail, "Relation Name: users, Alias: u, Filter: (age > 21), Rows Removed by Filter: 4")
+        XCTAssertTrue(seqScan.children.isEmpty)
+
+        let indexScan = plan.children[1]
+        XCTAssertEqual(indexScan.operation, "Index Scan")
+        XCTAssertEqual(indexScan.actualRows, 3)
+        XCTAssertEqual(indexScan.actualTimeMilliseconds!, 0.087, accuracy: 1e-9)
+        XCTAssertTrue(indexScan.detail?.contains("Index Name: orders_user_id_idx") ?? false)
+        XCTAssertTrue(indexScan.detail?.contains("Index Cond: (user_id = u.id)") ?? false)
+    }
+
+    func testPlainExplainWithoutActualsLeavesOptionalsNil() throws {
+        let fixture = """
+        [
+          {"Plan": {"Node Type": "Seq Scan", "Relation Name": "t", "Plan Rows": 100}}
+        ]
+        """
+        let plan = try ExplainParser.parse(fixture)
+        XCTAssertEqual(plan.operation, "Seq Scan")
+        XCTAssertNil(plan.actualRows)
+        XCTAssertNil(plan.actualTimeMilliseconds)
+        XCTAssertEqual(plan.detail, "Relation Name: t")
+        XCTAssertTrue(plan.children.isEmpty)
+    }
+
+    func testInvalidJSONThrows() {
+        XCTAssertThrowsError(try ExplainParser.parse("{not json"))
+        XCTAssertThrowsError(try ExplainParser.parse("[]"))
+        XCTAssertThrowsError(try ExplainParser.parse("[{\"Execution Time\": 1}]"))
+    }
+}
+
+/// ANSI `?` → `$n` rewriting that never touches strings, comments, dollar
+/// quotes, or quoted identifiers.
+final class PlaceholderRewriterUnitTests: XCTestCase {
+    private func rewritten(_ sql: String) -> String {
+        PlaceholderRewriter.rewrite(sql).text
+    }
+
+    func testRewritesEachPlaceholderToNextPosition() {
+        let result = PlaceholderRewriter.rewrite("UPDATE t SET a = ? WHERE b = ? AND c = ?")
+        XCTAssertEqual(result.placeholderCount, 3)
+        XCTAssertEqual(result.text, "UPDATE t SET a = $1 WHERE b = $2 AND c = $3")
+    }
+
+    func testIgnoresPlaceholdersInsideStringLiterals() {
+        XCTAssertEqual(
+            rewritten("UPDATE t SET a = 'x ? y' WHERE b = ?"),
+            "UPDATE t SET a = 'x ? y' WHERE b = $1"
+        )
+        // Doubled quote inside the literal must not terminate it early.
+        XCTAssertEqual(
+            rewritten("SELECT * FROM t WHERE note = 'it''s ? here' AND id = ?"),
+            "SELECT * FROM t WHERE note = 'it''s ? here' AND id = $1"
+        )
+    }
+
+    func testBackslashEscapedQuoteKeepsPlaceholderInsideString() {
+        XCTAssertEqual(
+            rewritten(#"UPDATE t SET a = 'don\'t?' WHERE b = ?"#),
+            #"UPDATE t SET a = 'don\'t?' WHERE b = $1"#
+        )
+    }
+
+    func testIgnoresPlaceholdersInsideLineComment() {
+        XCTAssertEqual(
+            rewritten("-- filter rows ?\nWHERE id = ?"),
+            "-- filter rows ?\nWHERE id = $1"
+        )
+    }
+
+    func testIgnoresPlaceholdersInsideNestedBlockComments() {
+        XCTAssertEqual(
+            rewritten("/* outer ? /* inner ? */ still commented ? */ WHERE x = ?"),
+            "/* outer ? /* inner ? */ still commented ? */ WHERE x = $1"
+        )
+    }
+
+    func testIgnoresPlaceholdersInsideDollarQuotedBodies() {
+        XCTAssertEqual(
+            rewritten("$tag$ body ? 'even quotes' ? $tag$ WHERE x = ?"),
+            "$tag$ body ? 'even quotes' ? $tag$ WHERE x = $1"
+        )
+        XCTAssertEqual(
+            rewritten("$$ anonymous dollar ? $$ WHERE x = ?"),
+            "$$ anonymous dollar ? $$ WHERE x = $1"
+        )
+    }
+
+    func testIgnoresPlaceholdersInsideQuotedIdentifiers() {
+        XCTAssertEqual(
+            rewritten(#"UPDATE t SET "weird ? col" = ? WHERE id = ?"#),
+            #"UPDATE t SET "weird ? col" = $1 WHERE id = $2"#
+        )
+    }
+
+    func testLiteralBackslashOutsideStringsPassesThrough() {
+        XCTAssertEqual(rewritten(#"WHERE path LIKE 'a\%' OR p = ?"#), #"WHERE path LIKE 'a\%' OR p = $1"#)
+        XCTAssertEqual(rewritten(#"WHERE p = ? -- trailing backslash \"#), #"WHERE p = $1 -- trailing backslash \"#)
+    }
+
+    func testNoPlaceholdersYieldsUnchangedSQL() {
+        let sql = "DELETE FROM t WHERE id = 7; /* ? */ SELECT '?'"
+        XCTAssertEqual(PlaceholderRewriter.rewrite(sql).placeholderCount, 0)
+        XCTAssertEqual(rewritten(sql), sql)
+    }
+}

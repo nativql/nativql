@@ -288,12 +288,17 @@ public final class PostgresDriver: DatabaseDriver, @unchecked Sendable {
     /// Maps execution failures into the Kit taxonomy. Structured `PSQLError`
     /// codes win over text sniffing; server-provided message/detail/hint are
     /// surfaced verbatim so users see PostgreSQL's own diagnostics.
+    ///
+    /// Cancellation covers both flavors: client-side task cancellation maps to
+    /// PostgresNIO's `.queryCancelled` code, while a server-side cancel
+    /// (`cancelRunningQuery` via `pg_cancel_backend`) arrives as an ordinary
+    /// server error carrying SQLSTATE `57014`.
     static func mapExecutionError(_ error: Error) -> DriverError {
         if error is CancellationError {
             return .cancelled
         }
         if let psql = error as? PSQLError {
-            if psql.code == .queryCancelled {
+            if psql.code == .queryCancelled || Self.isSQLStateCancelled(psql) {
                 return .cancelled
             }
             if psql.code == .server, let info = psql.serverInfo {
@@ -310,40 +315,128 @@ public final class PostgresDriver: DatabaseDriver, @unchecked Sendable {
         return .queryFailed(String(reflecting: error))
     }
 
-    public func cancelRunningQuery() async {
-        // Implemented in Batch 2 Task D together with the control connection.
+    /// True when the PSQLError is the server's "query canceled" (SQLSTATE 57014).
+    static func isSQLStateCancelled(_ psql: PSQLError) -> Bool {
+        psql.serverInfo?[.sqlState] == "57014"
     }
 
-    // MARK: - Introspection (Task C — see Introspection.swift)
+    public func cancelRunningQuery() async {
+        // Best-effort by contract: opens a short-lived control connection with
+        // the cached configuration, asks the server to cancel this session's
+        // running statement, and closes again. Any failure is swallowed so the
+        // primary connection's state is never touched.
+        guard let configuration = self.cachedConfiguration, let pid = self.connectionPID else {
+            return
+        }
+
+        let group = MultiThreadedEventLoopGroup(numberOfThreads: 1)
+        do {
+            let control = try await PostgresConnection.connect(
+                on: group.next(),
+                configuration: configuration,
+                id: Int.random(in: 1..<Int.max),
+                logger: self.logger
+            )
+            var binds = PostgresBindings()
+            binds.append(pid)
+            _ = try? await control.query(
+                PostgresQuery(unsafeSQL: "SELECT pg_cancel_backend($1::int4)", binds: binds),
+                logger: self.logger
+            ).collect()
+            try? await control.close()
+        } catch {
+            self.logger.debug("cancelRunningQuery: control connection failed: \(String(reflecting: error))")
+        }
+        try? await group.shutdownGracefully()
+    }
 
     // MARK: - Browsing & plans (Task D)
 
+    /// Reads one sorted window of rows (implementation in Introspection.swift,
+    /// next to the shared reltuples helper).
     public func browseRows(
         _ table: TableRef,
         sort: SortSpec?,
         limit: Int,
         offset: Int
     ) async throws -> RowPage {
-        throw DriverError.unsupportedFeature("browseRows(...) is implemented in Batch 2 Task D")
+        try await self.browseRowsImpl(table, sort: sort, limit: limit, offset: offset)
     }
 
+    /// Runs `EXPLAIN (ANALYZE<, FORMAT JSON>) <sql>` and parses the single JSON
+    /// cell into a plan tree. With `analyze: true` the statement actually
+    /// executes, so "Actual Rows"/"Actual Total Time" are populated.
+    ///
+    /// The plan column has no binary wire encoding; the server sends it as
+    /// text regardless of the requested format, and the mapper surfaces it as
+    /// `.json` (`.string` fallback for exotic servers).
     public func explain(_ sql: String, analyze: Bool) async throws -> ExplainPlanNode {
-        throw DriverError.unsupportedFeature("explain(_:analyze:) is implemented in Batch 2 Task D")
+        guard let connection = self.activeConnection else {
+            throw DriverError.connectionFailed("Not connected")
+        }
+        let options = analyze ? "ANALYZE, FORMAT JSON" : "FORMAT JSON"
+        let statement = "EXPLAIN (\(options)) \(sql)"
+
+        do {
+            let sequence = try await connection.query(PostgresQuery(unsafeSQL: statement), logger: self.logger)
+            let rows = try await sequence.collect()
+            guard let row = rows.first else {
+                throw DriverError.queryFailed("EXPLAIN produced no rows")
+            }
+            let text: String
+            switch try SQLValueMapper.map(PostgresRandomAccessRow(row)[0]) {
+            case .json(let json): text = json
+            case .string(let string): text = string
+            default:
+                throw DriverError.queryFailed("EXPLAIN returned a non-text payload")
+            }
+            do {
+                return try ExplainParser.parse(text)
+            } catch {
+                throw DriverError.queryFailed("unparseable EXPLAIN output: \(error)")
+            }
+        } catch {
+            if error is CancellationError { throw DriverError.cancelled }
+            if let driverError = error as? DriverError { throw driverError }
+            throw Self.mapExecutionError(error)
+        }
     }
 
     // MARK: - Admin (Task D)
 
+    /// Creates a database. `CREATE DATABASE` cannot run inside a transaction
+    /// block; PostgresNIO 1.x always uses the extended protocol whose
+    /// statements auto-commit outside explicit BEGIN blocks, which the server
+    /// accepts here.
     public func createDatabase(named name: String) async throws {
-        throw DriverError.unsupportedFeature("createDatabase(named:) is implemented in Batch 2 Task D")
+        try await runAdmin("CREATE DATABASE \(IdentifierQuoting.quote(name))")
     }
 
+    /// Drops a database, force-disconnecting remaining sessions first
+    /// (`WITH (FORCE)` requires PostgreSQL 13+).
     public func dropDatabase(named name: String) async throws {
-        throw DriverError.unsupportedFeature("dropDatabase(named:) is implemented in Batch 2 Task D")
+        try await runAdmin("DROP DATABASE \(IdentifierQuoting.quote(name)) WITH (FORCE)")
+    }
+
+    private func runAdmin(_ sql: String) async throws {
+        guard let connection = self.activeConnection else {
+            throw DriverError.connectionFailed("Not connected")
+        }
+        do {
+            _ = try await connection.query(PostgresQuery(unsafeSQL: sql), logger: self.logger).collect()
+        } catch {
+            throw Self.mapExecutionError(error)
+        }
     }
 
     // MARK: - Mutations (Task D)
 
+    /// Executes all batches in ONE transaction via ``MutationExecutor``
+    /// (see MutationExecutor.swift); returns total affected rows.
     public func executeMutation(_ statement: MutationStatement) async throws -> Int64 {
-        throw DriverError.unsupportedFeature("executeMutation(_:) is implemented in Batch 2 Task D")
+        guard let connection = self.connection else {
+            throw DriverError.connectionFailed("Not connected")
+        }
+        return try await MutationExecutor.execute(statement, on: connection, logger: self.logger)
     }
 }
