@@ -53,9 +53,3 @@ final class SettingsStore {
         min(max(value, range.lowerBound), range.upperBound)
     }
 }
-
-private extension Comparable {
-    func clamped(to range: ClosedRange<Self>) -> Self {
-        min(max(self, range.lowerBound), range.upperBound)
-    }
-}

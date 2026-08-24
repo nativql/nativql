@@ -37,6 +37,9 @@ final class HistoryRecorder {
             ok: ok
         ))
         trimToCapacity()
+        // Persist immediately instead of relying on mainContext autosave so an
+        // abrupt quit cannot drop the just-recorded entry.
+        try? context.save()
     }
 
     /// Deletes oldest entries beyond the cap; runs on every insert so the

@@ -129,6 +129,18 @@ final class PolishTests: XCTestCase {
         XCTAssertEqual(newest?.sql, "newest")
     }
 
+    func testRecorderSavesImmediatelySoFreshContextSeesTheEntry() throws {
+        // Autosave must not be load-bearing: an abrupt quit right after a run
+        // should not lose the history entry.
+        let writer = makeContext()
+        let recorder = HistoryRecorder(context: writer)
+
+        recorder.record(sql: "SELECT 1;", connectionName: "local", kind: .query, ok: true, durationMs: 1)
+
+        let reader = makeContext()
+        XCTAssertEqual(try reader.fetchCount(FetchDescriptor<QueryHistoryEntry>()), 1)
+    }
+
     // MARK: - HistoryViewModel
 
     private func seedHistory(_ context: ModelContext) {
@@ -289,6 +301,28 @@ final class PolishTests: XCTestCase {
         XCTAssertFalse(weird.contains("/"))
         XCTAssertFalse(weird.contains(":"))
         XCTAssertTrue(weird.hasSuffix(".json"))
+    }
+
+    // MARK: - Export row-limit validation
+
+    func testRowLimitValidationTreatsBlankAsAllRows() {
+        XCTAssertEqual(TableExportSheet.validateRowLimit(""), .allRows)
+        XCTAssertEqual(TableExportSheet.validateRowLimit("   "), .allRows)
+        XCTAssertEqual(TableExportSheet.validateRowLimit("\n\t "), .allRows)
+    }
+
+    func testRowLimitValidationAcceptsPositiveWholeNumbers() {
+        XCTAssertEqual(TableExportSheet.validateRowLimit("1000"), .limited(1000))
+        XCTAssertEqual(TableExportSheet.validateRowLimit(" 25 "), .limited(25))
+        XCTAssertEqual(TableExportSheet.validateRowLimit("1"), .limited(1))
+    }
+
+    func testRowLimitValidationRejectsZeroNegativeAndNonNumeric() {
+        XCTAssertEqual(TableExportSheet.validateRowLimit("0"), .invalid)
+        XCTAssertEqual(TableExportSheet.validateRowLimit("-5"), .invalid)
+        XCTAssertEqual(TableExportSheet.validateRowLimit("abc"), .invalid)
+        XCTAssertEqual(TableExportSheet.validateRowLimit("12.5"), .invalid)
+        XCTAssertEqual(TableExportSheet.validateRowLimit("1e3"), .invalid)
     }
 
     // MARK: - Explain gate

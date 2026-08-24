@@ -10,6 +10,9 @@ struct SavedQueriesPanel: View {
     @State private var viewModel: SavedQueriesViewModel?
     @State private var isAddingFolder = false
     @State private var newFolderName = ""
+    @State private var isRenaming = false
+    @State private var renamingQuery: SavedQuery?
+    @State private var renameText = ""
 
     var body: some View {
         Group {
@@ -74,6 +77,14 @@ struct SavedQueriesPanel: View {
         } message: {
             Text("Folders are flat in v1; queries can still be moved into them by path.")
         }
+        .alert("Rename Query", isPresented: $isRenaming, presenting: renamingQuery) { query in
+            TextField("Name", text: $renameText)
+            Button("Rename") {
+                // rename(_:) itself ignores whitespace-only names.
+                viewModel.rename(query, to: renameText)
+            }
+            Button("Cancel", role: .cancel) {}
+        }
     }
 
     /// Known folders plus any (possibly dangling) paths referenced by queries.
@@ -115,6 +126,11 @@ struct SavedQueriesPanel: View {
         .onTapGesture(count: 2) { run(query) }
         .contextMenu {
             Button("Run") { run(query) }
+            Button("Rename…") {
+                renameText = query.name
+                renamingQuery = query
+                isRenaming = true
+            }
             Button("Copy SQL") { copy(query.sql) }
             Menu("Move to Folder") {
                 Button("No Folder") { viewModel.move(query, to: nil) }
