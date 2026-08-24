@@ -410,6 +410,48 @@ extension IntegrationTests {
     }
 }
 
+// MARK: - Quoted identifier translation (Batch 6 review C1)
+extension IntegrationTests {
+    /// The app's inline-editing pipeline builds statements with the Kit
+    /// builders, which emit PostgreSQL-canonical `"ident"` spans. MySQL's
+    /// default sql_mode lexes those as string literals → ER_PARSE_ERROR
+    /// (1064). `executeMutation` must translate to backticks before binding,
+    /// and the row must ACTUALLY change with a truthful affected count.
+    func testExecuteMutationTranslatesKitQuotedIdentifiers() async throws {
+        let driver = try makeLiveDriver()
+        defer { Task { await driver.disconnect() } }
+
+        try await driver.connect(makeConfig())
+        _ = try await driver.execute(
+            """
+            DROP DATABASE IF EXISTS b3d_qi;
+            CREATE DATABASE b3d_qi;
+            CREATE TABLE b3d_qi.users(id INT PRIMARY KEY, email VARCHAR(255));
+            INSERT INTO b3d_qi.users VALUES (1, 'before@x.dev');
+            """
+        )
+        defer { Task { _ = try? await driver.execute("DROP DATABASE IF EXISTS b3d_qi") } }
+
+        // App-shaped ref: MySQL introspection carries the database as schema.
+        let ref = TableRef(database: "b3d_qi", schema: "b3d_qi", name: "users")
+        let statement = try XCTUnwrap(UpdateStatementBuilder.build(
+            table: ref,
+            pkColumns: [ColumnInfo(name: "id", dataType: "int", isPrimaryKey: true)],
+            changes: [(columnName: "email", newValue: SQLValue.string("after@x.dev"))],
+            pkValues: ["id": .int(1)]
+        ))
+        XCTAssertTrue(statement.sql.contains("\"users\""),
+                      "Kit emits double quotes verbatim: \(statement.sql)")
+
+        let affected = try await driver.executeMutation(statement)
+        XCTAssertEqual(affected, 1)
+
+        let check = try await driver.execute("SELECT email FROM b3d_qi.users WHERE id = 1")
+        XCTAssertEqual(check.rows, [[.string("after@x.dev")]],
+                       "the translated statement must have committed")
+    }
+}
+
 // MARK: - Browse, explain, admin, mutations, cancel (Batch 3 Task D)
 extension IntegrationTests {
     /// 25 seeded rows (id 1…25) with an index-free sort column; ANALYZE makes

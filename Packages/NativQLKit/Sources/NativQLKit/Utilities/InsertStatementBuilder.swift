@@ -1,5 +1,6 @@
 /// Kit emits PostgreSQL-style double-quoted identifiers as canonical form;
-/// MySQLDriver translates to backtick quoting at execution time (Batch 3).
+/// MySQLDriver translates those double-quoted identifiers to backticks in its
+/// mutation executor (`IdentifierTranslation`) before binding.
 public enum InsertStatementBuilder {
     public static func build(
         table: TableRef,

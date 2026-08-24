@@ -7,7 +7,11 @@ import MySQLNIO
 //
 // Unlike PostgreSQL's extended protocol, MySQLNIO binds `?` placeholders
 // natively (COM_STMT_PREPARE/EXECUTE are positional) — no `$n` rewriter is
-// needed; `statement.sql` is executed as-is with one binding list per batch.
+// needed. But `statement.sql` CANNOT go to the server verbatim either: Kit
+// builders emit PostgreSQL-canonical `"ident"` spans, which MySQL's default
+// sql_mode lexes as string literals (ER_PARSE_ERROR / 1064). So before
+// binding, double-quoted identifier spans are translated to backtick quoting
+// (`IdentifierTranslation`) — the mirror of PG's rewriter hook.
 //
 // The placeholder counter below exists for bind validation only: it must
 // agree with MySQLNIO's own lexer about WHERE a `?` is live SQL text, so it
@@ -105,7 +109,9 @@ enum MutationExecutor {
         on connection: MySQLConnection,
         logger: Logger
     ) async throws -> Int64 {
-        let placeholders = Self.placeholderCount(in: statement.sql)
+        // Kit's PG-canonical "ident" spans → MySQL backtick quoting.
+        let sql = IdentifierTranslation.translateQuotedIdentifiers(statement.sql)
+        let placeholders = Self.placeholderCount(in: sql)
 
         for (index, batch) in statement.batches.enumerated()
         where batch.count != placeholders {
@@ -123,7 +129,7 @@ enum MutationExecutor {
                 let binds = batch.map(SQLValueMapper.bindable)
                 var delta: Int64 = 0
                 _ = try await connection.query(
-                    statement.sql,
+                    sql,
                     binds,
                     onMetadata: { metadata in
                         delta = Int64(clamping: metadata.affectedRows)
