@@ -182,8 +182,21 @@ final class RowOperationsService {
 
     // MARK: - Commit
 
-    /// Builds and executes updates → inserts → deletes; clears staging only
-    /// after every statement succeeds, rethrowing otherwise with staging intact.
+    /// Builds and executes updates → inserts → deletes, then clears staging.
+    ///
+    /// v1 semantics: the three statements run as THREE independent
+    /// transactions, not one. A failure mid-pipeline can therefore leave a
+    /// PARTIAL application on the server (e.g. updates committed, deletes
+    /// never attempted); staging is preserved so the user can inspect, adjust,
+    /// and retry manually — but blindly re-committing may re-apply earlier
+    /// statements. Known limitation; roadmap item: a single cross-statement
+    /// transaction once drivers expose a multi-statement transactional scope
+    /// to this layer.
+    ///
+    /// Insurance: an UPDATE or DELETE reporting zero affected rows means the
+    /// row changed or no longer matches the snapshot the edit was staged
+    /// from — such a statement aborts the commit before any clearing.
+    /// INSERTs are exempt (a successful insert always affects its row).
     func commit(tab: QueryTab, driver: any DatabaseDriver) async throws {
         guard let staged = stagedEdits(for: tab.id) else { return }
         guard let browse = tab.browse else { throw OperationError.notBrowsing }
@@ -238,7 +251,12 @@ final class RowOperationsService {
         }
 
         for statement in statements {
-            _ = try await driver.executeMutation(statement)
+            let affected = try await driver.executeMutation(statement)
+            if statement.kind != .insert, !statement.batches.isEmpty, affected == 0 {
+                throw DriverError.mutationFailed(
+                    "Row changed or no longer matches — refresh and retry"
+                )
+            }
         }
 
         stagedByTab[tab.id] = nil

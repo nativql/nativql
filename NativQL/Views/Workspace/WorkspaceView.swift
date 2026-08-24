@@ -126,6 +126,8 @@ struct WorkspaceView: View {
                 dirtySummary: editorViewModel?.stagedSummary ?? "",
                 onCommit: { commitStagedEdits(viewModel) },
                 onRevertAll: { editorViewModel?.revertAll() },
+                showsInsertRow: editorViewModel?.isEditable ?? false,
+                onInsertRow: { insertStagedRow(viewModel) },
                 onNextPage: { Task { await viewModel.nextPage() } },
                 onPrevPage: { Task { await viewModel.prevPage() } }
             )
@@ -211,6 +213,15 @@ struct WorkspaceView: View {
         )
     }
 
+    /// "+ Row": stages an all-defaults insert that renders as an editable
+    /// empty row at the bottom of the grid; committing includes inserts.
+    private func insertStagedRow(_ viewModel: WorkspaceViewModel) {
+        guard let editor = editorViewModel, editor.isEditable,
+              viewModel.activeTab?.isBrowseMode ?? false,
+              !activeColumns.isEmpty else { return }
+        _ = editor.insertRow(columns: activeColumns)
+    }
+
     /// Commits staged edits for the active tab; success reloads the browse
     /// page, failure keeps staging and shows an alert.
     private func commitStagedEdits(_ viewModel: WorkspaceViewModel) {
@@ -272,6 +283,11 @@ struct WorkspaceView: View {
                 await model?.connectedDriverForActiveTab()
             }
         )
+        // Row-index-keyed staging only describes the currently rendered page;
+        // any page move or re-sort invalidates the whole tab's staged set.
+        model.onBrowseSnapshotChange = { [weak service] tabId in
+            service?.revertAll(tabId: tabId)
+        }
         refreshEditorDecision()
         if let selected = appState.selectedTable,
            appState.selectedConnectionId == connectionId {

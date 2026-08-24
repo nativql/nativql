@@ -11,6 +11,9 @@ struct ResultsFooterView: View {
     var dirtySummary: String = ""
     var onCommit: () -> Void = {}
     var onRevertAll: () -> Void = {}
+    /// Browse mode only: enables the "+ Row" append-row affordance.
+    var showsInsertRow: Bool = false
+    var onInsertRow: () -> Void = {}
     var onNextPage: () -> Void
     var onPrevPage: () -> Void
 
@@ -28,6 +31,7 @@ struct ResultsFooterView: View {
                     .frame(height: 14)
             }
             if browse != nil {
+                insertRowButton
                 pager
             }
         }
@@ -105,6 +109,19 @@ struct ResultsFooterView: View {
     }
 
     // MARK: - Pager
+
+    /// Appends an editable empty row to the bottom of the grid (a staged
+    /// insert); enabled only when the browsed table is editable.
+    private var insertRowButton: some View {
+        Button("+ Row") {
+            onInsertRow()
+        }
+        .controlSize(.small)
+        .disabled(!showsInsertRow)
+        .help(showsInsertRow
+              ? "Append an empty row to stage a new record"
+              : "Adding rows requires a primary key")
+    }
 
     private var pager: some View {
         HStack(spacing: 6) {

@@ -346,6 +346,44 @@ final class WorkspaceTests: XCTestCase {
         XCTAssertTrue(message.contains("browse blew up"))
     }
 
+    // MARK: - Staged-edit invalidation on snapshot change (Batch 6 review I1)
+
+    func testBrowseSnapshotChangeHookFiresOnNavigationAndSort() async throws {
+        let page = makeBrowsePage(rows: [])
+        let (vm, _, _) = makeFixture(browseResult: .success(page))
+        let tabId = openBrowseTab(vm)
+
+        var invalidated: [UUID] = []
+        vm.onBrowseSnapshotChange = { invalidated.append($0) }
+
+        await vm.loadCurrentPage()
+        XCTAssertTrue(invalidated.isEmpty, "the initial load is not a navigation")
+
+        await vm.nextPage()
+        XCTAssertEqual(invalidated, [tabId])
+
+        await vm.prevPage()
+        XCTAssertEqual(invalidated, [tabId, tabId])
+
+        await vm.setSort(columnName: "id")
+        XCTAssertEqual(invalidated, [tabId, tabId, tabId])
+    }
+
+    func testBrowseSnapshotChangeHookStaysSilentOnNoOpNavigation() async throws {
+        let page = makeBrowsePage(rows: [])
+        let (vm, _, _) = makeFixture(browseResult: .success(page))
+        openBrowseTab(vm, estimate: 100) // single partial page
+
+        var fired = 0
+        vm.onBrowseSnapshotChange = { _ in fired += 1 }
+
+        await vm.loadCurrentPage()
+        await vm.nextPage() // would exceed the estimate → ignored
+        await vm.prevPage() // already at the floor → no-op
+
+        XCTAssertEqual(fired, 0)
+    }
+
     // MARK: - Tab lifecycle
 
     /// Regression guard for connection switching: WorkspaceView recreates its

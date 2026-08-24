@@ -25,6 +25,13 @@ final class WorkspaceViewModel {
     /// results grid distinguish fresh data from unrelated re-renders.
     private(set) var gridRevision = 0
 
+    /// Invoked with a tab id whenever that tab's rendered browse snapshot
+    /// changes (page move or sort change). Row-index-keyed staging is only
+    /// valid within ONE rendered page snapshot — after navigation the same
+    /// index addresses a different row — so all staged edits for the tab must
+    /// be discarded before new rows render.
+    var onBrowseSnapshotChange: ((UUID) -> Void)?
+
     /// Monotonic "Query N" counters, per connection.
     private var queryCounters: [UUID: Int] = [:]
 
@@ -167,6 +174,7 @@ final class WorkspaceViewModel {
         let nextIndex = max(browse.pageIndex, 0) + 1
         if let total = browse.totalEstimate, nextIndex * browse.pageSize >= total { return }
         mutate(tab.id) { $0.browse?.pageIndex = nextIndex }
+        onBrowseSnapshotChange?(tab.id)
         await loadCurrentPage()
     }
 
@@ -175,6 +183,7 @@ final class WorkspaceViewModel {
         guard let tab = activeTab, let browse = tab.browse, browse.pageIndex > 0 else { return }
         let previousIndex = browse.pageIndex - 1
         mutate(tab.id) { $0.browse?.pageIndex = previousIndex }
+        onBrowseSnapshotChange?(tab.id)
         await loadCurrentPage()
     }
 
@@ -192,6 +201,7 @@ final class WorkspaceViewModel {
             state.pageIndex = 0
             tab.browse = state
         }
+        onBrowseSnapshotChange?(tab.id)
         await loadCurrentPage()
     }
 
