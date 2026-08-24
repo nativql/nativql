@@ -352,26 +352,9 @@ public final class MySQLDriver: DatabaseDriver, @unchecked Sendable {
     }
 
     // MARK: - Introspection (Task C)
-
-    public func listDatabases() async throws -> [DatabaseInfo] {
-        throw DriverError.unsupportedFeature("introspection arrives in Batch 3 Task C")
-    }
-
-    public func listTables(database: String, schema: String?) async throws -> [TableInfo] {
-        throw DriverError.unsupportedFeature("introspection arrives in Batch 3 Task C")
-    }
-
-    public func listColumns(_ table: TableRef) async throws -> [ColumnInfo] {
-        throw DriverError.unsupportedFeature("introspection arrives in Batch 3 Task C")
-    }
-
-    public func primaryKey(of table: TableRef) async throws -> [String]? {
-        throw DriverError.unsupportedFeature("introspection arrives in Batch 3 Task C")
-    }
-
-    public func tableDDL(_ table: TableRef) async throws -> String {
-        throw DriverError.unsupportedFeature("introspection arrives in Batch 3 Task C")
-    }
+    //
+    // listDatabases / listTables / listColumns / primaryKey / tableDDL live
+    // in Introspection.swift, mirroring PostgresDriver's file layout.
 
     // MARK: - Browsing & plans (Task D)
 

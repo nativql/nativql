@@ -239,3 +239,27 @@ extension SQLValue {
         return false
     }
 }
+
+// MARK: - IdentifierQuoting unit tests (Batch 3 Task C)
+
+/// Pure backtick quoting — no connection required.
+final class IdentifierQuotingUnitTests: XCTestCase {
+    func testQuotesPlainIdentifier() {
+        XCTAssertEqual(IdentifierQuoting.quote("users"), "`users`")
+        XCTAssertEqual(IdentifierQuoting.quote("b3c_test"), "`b3c_test`")
+    }
+
+    func testDoublesEmbeddedBackticks() {
+        XCTAssertEqual(IdentifierQuoting.quote("we`ird"), "`we``ird`")
+        XCTAssertEqual(IdentifierQuoting.quote("`"), "````")
+    }
+
+    func testPreservesCaseSpacesAndSpecials() {
+        XCTAssertEqual(IdentifierQuoting.quote("MixedCase"), "`MixedCase`")
+        XCTAssertEqual(IdentifierQuoting.quote("with space"), "`with space`")
+        XCTAssertEqual(IdentifierQuoting.quote("order"), "`order`")
+        XCTAssertEqual(IdentifierQuoting.quote(""), "``")
+        // Dots must stay inside one quoted identifier, not split into parts.
+        XCTAssertEqual(IdentifierQuoting.quote("db.tbl"), "`db.tbl`")
+    }
+}

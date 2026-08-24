@@ -219,3 +219,193 @@ extension IntegrationTests {
         }
     }
 }
+
+// MARK: - Introspection (Batch 3 Task C)
+extension IntegrationTests {
+    /// Batch 3 Task C fixture: composite PK, auto-increment identity PK,
+    /// defaults, a PK-less table, and a view — inside database `b3c_test`
+    /// (MySQL schema == database).
+    private func makeIntrospectionFixture(_ driver: MySQLDriver) async throws {
+        _ = try await driver.execute(
+            """
+            DROP TABLE IF EXISTS nativql_test.b3c_scope_probe;
+            DROP DATABASE IF EXISTS b3c_test;
+            CREATE DATABASE b3c_test;
+            CREATE TABLE b3c_test.users(
+                id INT PRIMARY KEY AUTO_INCREMENT,
+                email VARCHAR(255) NOT NULL UNIQUE
+            );
+            CREATE TABLE b3c_test.orders(
+                id INT NOT NULL,
+                user_id INT NOT NULL,
+                amount DECIMAL(12,2),
+                note VARCHAR(255) DEFAULT 'none',
+                PRIMARY KEY(id, user_id)
+            );
+            CREATE TABLE b3c_test.no_pk(id INT);
+            CREATE VIEW b3c_test.user_emails AS SELECT id, email FROM b3c_test.users;
+            INSERT INTO b3c_test.users(email) VALUES ('a@x.dev'), ('b@x.dev');
+            ANALYZE TABLE b3c_test.users;
+            CREATE TABLE nativql_test.b3c_scope_probe(id INT);
+            """
+        )
+    }
+
+    private func dropIntrospectionFixture(_ driver: MySQLDriver) async {
+        _ = try? await driver.execute("DROP TABLE IF EXISTS nativql_test.b3c_scope_probe")
+        _ = try? await driver.execute("DROP DATABASE IF EXISTS b3c_test")
+    }
+
+    func testListDatabasesExcludesSystemSchemas() async throws {
+        let driver = try makeLiveDriver()
+        defer { Task { await driver.disconnect() } }
+
+        try await driver.connect(makeConfig())
+        let databases = try await driver.listDatabases()
+
+        XCTAssertTrue(databases.contains { $0.name == "nativql_test" })
+        for system in ["information_schema", "mysql", "performance_schema", "sys"] {
+            XCTAssertFalse(databases.contains { $0.name == system }, "\(system) must be filtered")
+        }
+        // Deterministic ordering (SHOW DATABASES output order is not).
+        XCTAssertEqual(databases.map(\.name), databases.map(\.name).sorted())
+    }
+
+    func testListTablesScopesToDatabaseAndReportsKindsAndEstimates() async throws {
+        let driver = try makeLiveDriver()
+        defer { Task { await driver.disconnect() } }
+
+        try await driver.connect(makeConfig())
+        try await self.makeIntrospectionFixture(driver)
+        defer { Task { await self.dropIntrospectionFixture(driver) } }
+
+        // Default listing: the connected database only — the probe table is
+        // visible, b3c_test objects are not.
+        let all = try await driver.listTables(database: "nativql_test", schema: nil)
+        XCTAssertTrue(all.contains { $0.ref.name == "b3c_scope_probe" })
+        XCTAssertFalse(all.contains { $0.ref.name == "users" }, "other databases must not leak in")
+        for table in all {
+            XCTAssertEqual(table.ref.schema, "nativql_test", "schema carries the database name")
+        }
+
+        // Scoped listing narrows to exactly b3c_test with kinds + estimates.
+        let scoped = try await driver.listTables(database: "whatever-arg", schema: "b3c_test")
+        XCTAssertEqual(Set(scoped.map { $0.ref.schema ?? "" }), ["b3c_test"])
+
+        let names = Set(scoped.map(\.ref.name))
+        XCTAssertEqual(names, ["users", "orders", "no_pk", "user_emails"])
+
+        let users = scoped.first { $0.ref.name == "users" }
+        XCTAssertEqual(users?.kind, .table)
+        XCTAssertGreaterThanOrEqual(users?.estimatedRowCount ?? -1, 2,
+                                    "ANALYZEd table must carry a ≥ 2 estimate")
+
+        let orders = scoped.first { $0.ref.name == "orders" }
+        XCTAssertEqual(orders?.kind, .table)
+        XCTAssertEqual(orders?.estimatedRowCount, 0, "empty table estimates 0")
+
+        let emailsView = scoped.first { $0.ref.name == "user_emails" }
+        XCTAssertEqual(emailsView?.kind, .view)
+        XCTAssertNil(emailsView?.estimatedRowCount, "view TABLE_ROWS is NULL → nil estimate")
+
+        // A nonexistent database yields no rows rather than an error.
+        let empty = try await driver.listTables(database: "b3c_does_not_exist", schema: nil)
+        XCTAssertTrue(empty.isEmpty)
+    }
+
+    func testListColumnsOrdinalOrderTypesAndPrimaryKeyFlags() async throws {
+        let driver = try makeLiveDriver()
+        defer { Task { await driver.disconnect() } }
+
+        try await driver.connect(makeConfig())
+        try await self.makeIntrospectionFixture(driver)
+        defer { Task { await self.dropIntrospectionFixture(driver) } }
+
+        let ordersRef = TableRef(database: "b3c_test", schema: nil, name: "orders")
+        let columns = try await driver.listColumns(ordersRef)
+
+        XCTAssertEqual(columns.map(\.name), ["id", "user_id", "amount", "note"])
+        XCTAssertEqual(
+            columns.map(\.dataType),
+            ["int", "int", "decimal(12,2)", "varchar(255)"],
+            "dataType must be the full COLUMN_TYPE form"
+        )
+        XCTAssertEqual(columns.map(\.isPrimaryKey), [true, true, false, false])
+        XCTAssertEqual(columns.map(\.isNullable), [false, false, true, true])
+
+        // Defaults stay raw: COLUMN_DEFAULT carries the literal text.
+        XCTAssertEqual(columns[3].defaultValue, "none")
+        XCTAssertNil(columns[0].defaultValue)
+        XCTAssertNil(columns[2].defaultValue)
+
+        // Schema-nil resolution falls back to the ref's own database; an
+        // explicit-schema call must agree exactly.
+        let explicit = try await driver.listColumns(
+            TableRef(database: "unused", schema: "b3c_test", name: "orders")
+        )
+        XCTAssertEqual(explicit, columns)
+
+        // A truly missing relation must throw instead of returning [].
+        do {
+            _ = try await driver.listColumns(
+                TableRef(database: "nativql_test", schema: nil, name: "orders")
+            )
+            XCTFail("nativql_test.orders does not exist; lookup must throw")
+        } catch is DriverError {}
+    }
+
+    func testPrimaryKeyOrderAndAbsence() async throws {
+        let driver = try makeLiveDriver()
+        defer { Task { await driver.disconnect() } }
+
+        try await driver.connect(makeConfig())
+        try await self.makeIntrospectionFixture(driver)
+        defer { Task { await self.dropIntrospectionFixture(driver) } }
+
+        let ordersPK = try await driver.primaryKey(of: TableRef(database: "b3c_test", name: "orders"))
+        XCTAssertEqual(ordersPK, ["id", "user_id"], "composite PK order must match constraint declaration")
+
+        let usersPK = try await driver.primaryKey(of: TableRef(database: "b3c_test", name: "users"))
+        XCTAssertEqual(usersPK, ["id"])
+
+        let noPK = try await driver.primaryKey(of: TableRef(database: "b3c_test", name: "no_pk"))
+        XCTAssertNil(noPK, "PK-less table must return nil")
+
+        let viewPK = try await driver.primaryKey(of: TableRef(database: "b3c_test", name: "user_emails"))
+        XCTAssertNil(viewPK, "views have no primary key")
+    }
+
+    func testTableDDLReturnsVerbatimShowCreateTable() async throws {
+        let driver = try makeLiveDriver()
+        defer { Task { await driver.disconnect() } }
+
+        try await driver.connect(makeConfig())
+        try await self.makeIntrospectionFixture(driver)
+        defer { Task { await self.dropIntrospectionFixture(driver) } }
+
+        let ordersDDL = try await driver.tableDDL(TableRef(database: "b3c_test", name: "orders"))
+        // Server output verbatim: unqualified name header, engine suffix.
+        XCTAssertTrue(ordersDDL.hasPrefix("CREATE TABLE `orders` ("), ordersDDL)
+        XCTAssertTrue(ordersDDL.contains("`amount` decimal(12,2) DEFAULT NULL"), ordersDDL)
+        XCTAssertTrue(ordersDDL.contains("PRIMARY KEY (`id`,`user_id`)"), ordersDDL)
+        XCTAssertTrue(ordersDDL.contains("ENGINE=InnoDB"), ordersDDL)
+        XCTAssertTrue(ordersDDL.contains("DEFAULT CHARSET=utf8mb4"), ordersDDL)
+        XCTAssertTrue(ordersDDL.hasSuffix("utf8mb4_0900_ai_ci"), ordersDDL)
+
+        let usersDDL = try await driver.tableDDL(TableRef(database: "b3c_test", name: "users"))
+        XCTAssertTrue(usersDDL.contains("`id` int NOT NULL AUTO_INCREMENT"), usersDDL)
+        XCTAssertTrue(usersDDL.contains("PRIMARY KEY (`id`)"), usersDDL)
+        XCTAssertTrue(usersDDL.contains("UNIQUE KEY"), usersDDL)
+
+        do {
+            _ = try await driver.tableDDL(TableRef(database: "b3c_test", name: "does_not_exist"))
+            XCTFail("DDL of a missing table must throw")
+        } catch let error as DriverError {
+            guard case .queryFailed(let message) = error else {
+                return XCTFail("expected queryFailed, got \(error)")
+            }
+            XCTAssertTrue(message.lowercased().contains("doesn't exist"),
+                          "server message expected: \(message)")
+        }
+    }
+}
