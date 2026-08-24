@@ -12,13 +12,16 @@
 		18399C5C842009739F18A6E3 /* SidebarViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61A227E287BD2B816ED8C926 /* SidebarViewModel.swift */; };
 		20001A09C1A4DEFA7344F1EB /* MySQLDriver in Frameworks */ = {isa = PBXBuildFile; productRef = 4904FE4D6986583CB52C78B0 /* MySQLDriver */; };
 		2EBE02045490D8FA81074615 /* DriverProviding.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA2B5972F708C1F9D17F7227 /* DriverProviding.swift */; };
+		3CA5FD5DE81E46BE7028E41B /* RowEditingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC625AA564BFD26678F107E6 /* RowEditingTests.swift */; };
 		41FC622006AEA90194C55E1C /* WorkspaceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE71D397047A3A3EEDFFB7EE /* WorkspaceTests.swift */; };
 		42D407F0740772125865F400 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6BB27DCF81CA87EFEFF5ECE /* RootView.swift */; };
+		47A8D8A6B59223807C71CCFB /* RowOperationsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 73D87B6FC716BB137353C74B /* RowOperationsService.swift */; };
 		4DDD8F20FACA21FE5D2FDE9E /* PostgresDriver in Frameworks */ = {isa = PBXBuildFile; productRef = 54816D600B3AECA69AA056D9 /* PostgresDriver */; };
 		5227B27B158CC67F5F35F1E2 /* ResultsGridView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A5E1DF088DC216929CC9832 /* ResultsGridView.swift */; };
 		58B83E7101F5CC70DE4619D9 /* WorkspaceViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81AC4A6E786C62D3CD82CC27 /* WorkspaceViewModel.swift */; };
 		5CC225895A1AA0BCBEF49C5A /* NativQLKit in Frameworks */ = {isa = PBXBuildFile; productRef = F6338A038D70441EDADB3A16 /* NativQLKit */; };
 		6D75D1284D30EF4C46207F98 /* ResultsFooterView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FE50A7B1CB55F5AD78BED4C /* ResultsFooterView.swift */; };
+		7158523EC37CFBBDB1454AA1 /* BrowseEditorViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F090007D745751FB35524D9 /* BrowseEditorViewModel.swift */; };
 		71B9FAE846D409A1CC474E52 /* QueryTab.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00963A3C53CDDE4C96784B66 /* QueryTab.swift */; };
 		865E620E2152D3ABD4FFC4C0 /* ConnectionFormView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E759089C41F7910F464495F /* ConnectionFormView.swift */; };
 		890408BF8D777497CEBBC9AF /* SQLHighlighter.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1A3B751F78C11362C72E490 /* SQLHighlighter.swift */; };
@@ -36,6 +39,7 @@
 		C41E7831BD06D8802D68DECF /* WelcomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43B2A0FC48CC0430083DE5DC /* WelcomeView.swift */; };
 		D804DDE300842A3E4DBCAD04 /* SidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2176EADC44D442157B2D33B8 /* SidebarView.swift */; };
 		DD1A568C9CCDF595ADA60A3E /* VSplitLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E5CD6481E5ADB7A7370809B /* VSplitLayout.swift */; };
+		EF0E8681B7E914A43B77DBEC /* StagedEdits.swift in Sources */ = {isa = PBXBuildFile; fileRef = 26E59C81BD0A2E8D2053A227 /* StagedEdits.swift */; };
 		F81770509502BE5EE259B201 /* CellContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4B078C52BC8AB2A24740F5D /* CellContentView.swift */; };
 		FD8BEF73F7DD813765AE1046 /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7250C946F2454C4F75D1FBF0 /* AppState.swift */; };
 /* End PBXBuildFile section */
@@ -59,14 +63,17 @@
 		181179E416692E2C616FCDD5 /* NativQLTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = NativQLTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		2176EADC44D442157B2D33B8 /* SidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarView.swift; sourceTree = "<group>"; };
 		264E9286DE39E1043FCC1B38 /* NativQLKit */ = {isa = PBXFileReference; lastKnownFileType = folder; name = NativQLKit; path = Packages/NativQLKit; sourceTree = SOURCE_ROOT; };
+		26E59C81BD0A2E8D2053A227 /* StagedEdits.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StagedEdits.swift; sourceTree = "<group>"; };
 		28117378309ECF9BC8605BAD /* NativQL.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = NativQL.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		38D3B7707522F5ADB590FE1C /* Loadable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Loadable.swift; sourceTree = "<group>"; };
+		3F090007D745751FB35524D9 /* BrowseEditorViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowseEditorViewModel.swift; sourceTree = "<group>"; };
 		3FE50A7B1CB55F5AD78BED4C /* ResultsFooterView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResultsFooterView.swift; sourceTree = "<group>"; };
 		43B2A0FC48CC0430083DE5DC /* WelcomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WelcomeView.swift; sourceTree = "<group>"; };
 		61A227E287BD2B816ED8C926 /* SidebarViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarViewModel.swift; sourceTree = "<group>"; };
 		6587169903FDB6D1545B7DE9 /* TabBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabBarView.swift; sourceTree = "<group>"; };
 		6E26847049E070F5C89CFB21 /* MySQLDriver */ = {isa = PBXFileReference; lastKnownFileType = folder; name = MySQLDriver; path = Packages/MySQLDriver; sourceTree = SOURCE_ROOT; };
 		7250C946F2454C4F75D1FBF0 /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
+		73D87B6FC716BB137353C74B /* RowOperationsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RowOperationsService.swift; sourceTree = "<group>"; };
 		7E5CD6481E5ADB7A7370809B /* VSplitLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VSplitLayout.swift; sourceTree = "<group>"; };
 		8082EBF41EBFD7DEF43ECBE2 /* QueryEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QueryEditorView.swift; sourceTree = "<group>"; };
 		81AC4A6E786C62D3CD82CC27 /* WorkspaceViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceViewModel.swift; sourceTree = "<group>"; };
@@ -76,6 +83,7 @@
 		AC469FC25BEA4D43EBFDB476 /* AppShellTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppShellTests.swift; sourceTree = "<group>"; };
 		B15180F2B533636F40BACAC3 /* DatabaseTreeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatabaseTreeView.swift; sourceTree = "<group>"; };
 		B1A3B751F78C11362C72E490 /* SQLHighlighter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SQLHighlighter.swift; sourceTree = "<group>"; };
+		BC625AA564BFD26678F107E6 /* RowEditingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RowEditingTests.swift; sourceTree = "<group>"; };
 		C4B078C52BC8AB2A24740F5D /* CellContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CellContentView.swift; sourceTree = "<group>"; };
 		CE71D397047A3A3EEDFFB7EE /* WorkspaceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceTests.swift; sourceTree = "<group>"; };
 		D7371ED0A9BB91B08CA5F30C /* SQLHighlighterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SQLHighlighterTests.swift; sourceTree = "<group>"; };
@@ -147,6 +155,7 @@
 		350F49929C700BDD31958368 /* ViewModels */ = {
 			isa = PBXGroup;
 			children = (
+				3F090007D745751FB35524D9 /* BrowseEditorViewModel.swift */,
 				61A227E287BD2B816ED8C926 /* SidebarViewModel.swift */,
 				81AC4A6E786C62D3CD82CC27 /* WorkspaceViewModel.swift */,
 			);
@@ -158,6 +167,7 @@
 			children = (
 				0EF2FC3677C42D91FE3DFC8E /* DatabaseConnectionManager.swift */,
 				AA2B5972F708C1F9D17F7227 /* DriverProviding.swift */,
+				73D87B6FC716BB137353C74B /* RowOperationsService.swift */,
 				B1A3B751F78C11362C72E490 /* SQLHighlighter.swift */,
 			);
 			path = Services;
@@ -242,6 +252,7 @@
 			isa = PBXGroup;
 			children = (
 				AC469FC25BEA4D43EBFDB476 /* AppShellTests.swift */,
+				BC625AA564BFD26678F107E6 /* RowEditingTests.swift */,
 				EE9F97BDAC3A1CE10014A63A /* SmokeTests.swift */,
 				D7371ED0A9BB91B08CA5F30C /* SQLHighlighterTests.swift */,
 				CE71D397047A3A3EEDFFB7EE /* WorkspaceTests.swift */,
@@ -263,6 +274,7 @@
 				7250C946F2454C4F75D1FBF0 /* AppState.swift */,
 				38D3B7707522F5ADB590FE1C /* Loadable.swift */,
 				00963A3C53CDDE4C96784B66 /* QueryTab.swift */,
+				26E59C81BD0A2E8D2053A227 /* StagedEdits.swift */,
 			);
 			path = State;
 			sourceTree = "<group>";
@@ -354,6 +366,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				96AE2A53D7CDDB1E69F1ADD4 /* AppShellTests.swift in Sources */,
+				3CA5FD5DE81E46BE7028E41B /* RowEditingTests.swift in Sources */,
 				9EF8B73CCC7FD9AC346C33B4 /* SQLHighlighterTests.swift in Sources */,
 				AD7AF14BB37E9155F1E6BA92 /* SmokeTests.swift in Sources */,
 				41FC622006AEA90194C55E1C /* WorkspaceTests.swift in Sources */,
@@ -365,6 +378,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				FD8BEF73F7DD813765AE1046 /* AppState.swift in Sources */,
+				7158523EC37CFBBDB1454AA1 /* BrowseEditorViewModel.swift in Sources */,
 				F81770509502BE5EE259B201 /* CellContentView.swift in Sources */,
 				B110BF67FD0DD44D789DCDE1 /* ColorLabelPalette.swift in Sources */,
 				865E620E2152D3ABD4FFC4C0 /* ConnectionFormView.swift in Sources */,
@@ -380,9 +394,11 @@
 				6D75D1284D30EF4C46207F98 /* ResultsFooterView.swift in Sources */,
 				5227B27B158CC67F5F35F1E2 /* ResultsGridView.swift in Sources */,
 				42D407F0740772125865F400 /* RootView.swift in Sources */,
+				47A8D8A6B59223807C71CCFB /* RowOperationsService.swift in Sources */,
 				890408BF8D777497CEBBC9AF /* SQLHighlighter.swift in Sources */,
 				D804DDE300842A3E4DBCAD04 /* SidebarView.swift in Sources */,
 				18399C5C842009739F18A6E3 /* SidebarViewModel.swift in Sources */,
+				EF0E8681B7E914A43B77DBEC /* StagedEdits.swift in Sources */,
 				A3FCCD4E3AAFC255781B9993 /* TabBarView.swift in Sources */,
 				DD1A568C9CCDF595ADA60A3E /* VSplitLayout.swift in Sources */,
 				C41E7831BD06D8802D68DECF /* WelcomeView.swift in Sources */,
