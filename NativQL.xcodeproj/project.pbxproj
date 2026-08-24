@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		04624A35599C4780DDBDA03B /* QueryEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8082EBF41EBFD7DEF43ECBE2 /* QueryEditorView.swift */; };
 		147B795560F459FB749F45C4 /* DatabaseTreeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B15180F2B533636F40BACAC3 /* DatabaseTreeView.swift */; };
 		18399C5C842009739F18A6E3 /* SidebarViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61A227E287BD2B816ED8C926 /* SidebarViewModel.swift */; };
 		20001A09C1A4DEFA7344F1EB /* MySQLDriver in Frameworks */ = {isa = PBXBuildFile; productRef = 4904FE4D6986583CB52C78B0 /* MySQLDriver */; };
@@ -14,19 +15,28 @@
 		41FC622006AEA90194C55E1C /* WorkspaceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE71D397047A3A3EEDFFB7EE /* WorkspaceTests.swift */; };
 		42D407F0740772125865F400 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6BB27DCF81CA87EFEFF5ECE /* RootView.swift */; };
 		4DDD8F20FACA21FE5D2FDE9E /* PostgresDriver in Frameworks */ = {isa = PBXBuildFile; productRef = 54816D600B3AECA69AA056D9 /* PostgresDriver */; };
+		5227B27B158CC67F5F35F1E2 /* ResultsGridView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A5E1DF088DC216929CC9832 /* ResultsGridView.swift */; };
 		58B83E7101F5CC70DE4619D9 /* WorkspaceViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81AC4A6E786C62D3CD82CC27 /* WorkspaceViewModel.swift */; };
 		5CC225895A1AA0BCBEF49C5A /* NativQLKit in Frameworks */ = {isa = PBXBuildFile; productRef = F6338A038D70441EDADB3A16 /* NativQLKit */; };
+		6D75D1284D30EF4C46207F98 /* ResultsFooterView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FE50A7B1CB55F5AD78BED4C /* ResultsFooterView.swift */; };
 		71B9FAE846D409A1CC474E52 /* QueryTab.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00963A3C53CDDE4C96784B66 /* QueryTab.swift */; };
 		865E620E2152D3ABD4FFC4C0 /* ConnectionFormView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E759089C41F7910F464495F /* ConnectionFormView.swift */; };
+		890408BF8D777497CEBBC9AF /* SQLHighlighter.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1A3B751F78C11362C72E490 /* SQLHighlighter.swift */; };
 		95BF5ACA2A8ED0244DE56170 /* DatabaseConnectionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0EF2FC3677C42D91FE3DFC8E /* DatabaseConnectionManager.swift */; };
 		96AE2A53D7CDDB1E69F1ADD4 /* AppShellTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC469FC25BEA4D43EBFDB476 /* AppShellTests.swift */; };
+		9EF8B73CCC7FD9AC346C33B4 /* SQLHighlighterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D7371ED0A9BB91B08CA5F30C /* SQLHighlighterTests.swift */; };
+		A3FCCD4E3AAFC255781B9993 /* TabBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6587169903FDB6D1545B7DE9 /* TabBarView.swift */; };
+		A86E6433A93C8639BD61FD53 /* WorkspaceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA30D9EFB3FA551ECBDC379C /* WorkspaceView.swift */; };
 		AD7AF14BB37E9155F1E6BA92 /* SmokeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE9F97BDAC3A1CE10014A63A /* SmokeTests.swift */; };
 		B110BF67FD0DD44D789DCDE1 /* ColorLabelPalette.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04AC0E0A4BD09ADB6BE54599 /* ColorLabelPalette.swift */; };
 		B45CDB21D55EF62D5ACE4D23 /* ConnectionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B564F1C47409C54626ECE76 /* ConnectionStore.swift */; };
 		BDB6932E6879D19E604C25B1 /* Loadable.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38D3B7707522F5ADB590FE1C /* Loadable.swift */; };
 		BF8D572B1FE2BBC289BE7C0D /* NativQLApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = E08BB443FDF7763932642B19 /* NativQLApp.swift */; };
+		C268F51CF084768D7CF0FBF6 /* LineNumberRulerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9168C0A49CF4DD54F3AF471 /* LineNumberRulerView.swift */; };
 		C41E7831BD06D8802D68DECF /* WelcomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43B2A0FC48CC0430083DE5DC /* WelcomeView.swift */; };
 		D804DDE300842A3E4DBCAD04 /* SidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2176EADC44D442157B2D33B8 /* SidebarView.swift */; };
+		DD1A568C9CCDF595ADA60A3E /* VSplitLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E5CD6481E5ADB7A7370809B /* VSplitLayout.swift */; };
+		F81770509502BE5EE259B201 /* CellContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4B078C52BC8AB2A24740F5D /* CellContentView.swift */; };
 		FD8BEF73F7DD813765AE1046 /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7250C946F2454C4F75D1FBF0 /* AppState.swift */; };
 /* End PBXBuildFile section */
 
@@ -43,6 +53,7 @@
 /* Begin PBXFileReference section */
 		00963A3C53CDDE4C96784B66 /* QueryTab.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QueryTab.swift; sourceTree = "<group>"; };
 		04AC0E0A4BD09ADB6BE54599 /* ColorLabelPalette.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ColorLabelPalette.swift; sourceTree = "<group>"; };
+		0A5E1DF088DC216929CC9832 /* ResultsGridView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResultsGridView.swift; sourceTree = "<group>"; };
 		0E759089C41F7910F464495F /* ConnectionFormView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectionFormView.swift; sourceTree = "<group>"; };
 		0EF2FC3677C42D91FE3DFC8E /* DatabaseConnectionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatabaseConnectionManager.swift; sourceTree = "<group>"; };
 		181179E416692E2C616FCDD5 /* NativQLTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = NativQLTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -50,19 +61,28 @@
 		264E9286DE39E1043FCC1B38 /* NativQLKit */ = {isa = PBXFileReference; lastKnownFileType = folder; name = NativQLKit; path = Packages/NativQLKit; sourceTree = SOURCE_ROOT; };
 		28117378309ECF9BC8605BAD /* NativQL.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = NativQL.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		38D3B7707522F5ADB590FE1C /* Loadable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Loadable.swift; sourceTree = "<group>"; };
+		3FE50A7B1CB55F5AD78BED4C /* ResultsFooterView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResultsFooterView.swift; sourceTree = "<group>"; };
 		43B2A0FC48CC0430083DE5DC /* WelcomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WelcomeView.swift; sourceTree = "<group>"; };
 		61A227E287BD2B816ED8C926 /* SidebarViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarViewModel.swift; sourceTree = "<group>"; };
+		6587169903FDB6D1545B7DE9 /* TabBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabBarView.swift; sourceTree = "<group>"; };
 		6E26847049E070F5C89CFB21 /* MySQLDriver */ = {isa = PBXFileReference; lastKnownFileType = folder; name = MySQLDriver; path = Packages/MySQLDriver; sourceTree = SOURCE_ROOT; };
 		7250C946F2454C4F75D1FBF0 /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
+		7E5CD6481E5ADB7A7370809B /* VSplitLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VSplitLayout.swift; sourceTree = "<group>"; };
+		8082EBF41EBFD7DEF43ECBE2 /* QueryEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QueryEditorView.swift; sourceTree = "<group>"; };
 		81AC4A6E786C62D3CD82CC27 /* WorkspaceViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceViewModel.swift; sourceTree = "<group>"; };
 		8B564F1C47409C54626ECE76 /* ConnectionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectionStore.swift; sourceTree = "<group>"; };
 		A63B4A3A6F37FCA3D46B4B38 /* PostgresDriver */ = {isa = PBXFileReference; lastKnownFileType = folder; name = PostgresDriver; path = Packages/PostgresDriver; sourceTree = SOURCE_ROOT; };
 		AA2B5972F708C1F9D17F7227 /* DriverProviding.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DriverProviding.swift; sourceTree = "<group>"; };
 		AC469FC25BEA4D43EBFDB476 /* AppShellTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppShellTests.swift; sourceTree = "<group>"; };
 		B15180F2B533636F40BACAC3 /* DatabaseTreeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatabaseTreeView.swift; sourceTree = "<group>"; };
+		B1A3B751F78C11362C72E490 /* SQLHighlighter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SQLHighlighter.swift; sourceTree = "<group>"; };
+		C4B078C52BC8AB2A24740F5D /* CellContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CellContentView.swift; sourceTree = "<group>"; };
 		CE71D397047A3A3EEDFFB7EE /* WorkspaceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceTests.swift; sourceTree = "<group>"; };
+		D7371ED0A9BB91B08CA5F30C /* SQLHighlighterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SQLHighlighterTests.swift; sourceTree = "<group>"; };
+		DA30D9EFB3FA551ECBDC379C /* WorkspaceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceView.swift; sourceTree = "<group>"; };
 		E08BB443FDF7763932642B19 /* NativQLApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativQLApp.swift; sourceTree = "<group>"; };
 		E6BB27DCF81CA87EFEFF5ECE /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
+		E9168C0A49CF4DD54F3AF471 /* LineNumberRulerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LineNumberRulerView.swift; sourceTree = "<group>"; };
 		EE9F97BDAC3A1CE10014A63A /* SmokeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SmokeTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -138,6 +158,7 @@
 			children = (
 				0EF2FC3677C42D91FE3DFC8E /* DatabaseConnectionManager.swift */,
 				AA2B5972F708C1F9D17F7227 /* DriverProviding.swift */,
+				B1A3B751F78C11362C72E490 /* SQLHighlighter.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -152,14 +173,26 @@
 			path = Packages;
 			sourceTree = "<group>";
 		};
+		65883A1CA5E50DADE0947773 /* Results */ = {
+			isa = PBXGroup;
+			children = (
+				C4B078C52BC8AB2A24740F5D /* CellContentView.swift */,
+				3FE50A7B1CB55F5AD78BED4C /* ResultsFooterView.swift */,
+				0A5E1DF088DC216929CC9832 /* ResultsGridView.swift */,
+			);
+			path = Results;
+			sourceTree = "<group>";
+		};
 		74337253C805DF536A8C5361 /* Views */ = {
 			isa = PBXGroup;
 			children = (
 				E6BB27DCF81CA87EFEFF5ECE /* RootView.swift */,
 				2E0AAB4403D7512B7A03F87A /* ConnectionForm */,
+				ECB62A5B59B3018ECEAF470F /* Primitives */,
 				1AC09947DC472956D1E188D7 /* Sidebar */,
 				D095DBEAE247611935E0B655 /* Support */,
 				80F59C1A4B3950CD18C500E9 /* Welcome */,
+				A7A6EBEB5135F1B3B4E5D2A7 /* Workspace */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -170,6 +203,18 @@
 				43B2A0FC48CC0430083DE5DC /* WelcomeView.swift */,
 			);
 			path = Welcome;
+			sourceTree = "<group>";
+		};
+		A7A6EBEB5135F1B3B4E5D2A7 /* Workspace */ = {
+			isa = PBXGroup;
+			children = (
+				8082EBF41EBFD7DEF43ECBE2 /* QueryEditorView.swift */,
+				6587169903FDB6D1545B7DE9 /* TabBarView.swift */,
+				7E5CD6481E5ADB7A7370809B /* VSplitLayout.swift */,
+				DA30D9EFB3FA551ECBDC379C /* WorkspaceView.swift */,
+				65883A1CA5E50DADE0947773 /* Results */,
+			);
+			path = Workspace;
 			sourceTree = "<group>";
 		};
 		AC02FA201B80CAC69DDBBE86 /* NativQL */ = {
@@ -198,9 +243,18 @@
 			children = (
 				AC469FC25BEA4D43EBFDB476 /* AppShellTests.swift */,
 				EE9F97BDAC3A1CE10014A63A /* SmokeTests.swift */,
+				D7371ED0A9BB91B08CA5F30C /* SQLHighlighterTests.swift */,
 				CE71D397047A3A3EEDFFB7EE /* WorkspaceTests.swift */,
 			);
 			path = NativQLTests;
+			sourceTree = "<group>";
+		};
+		ECB62A5B59B3018ECEAF470F /* Primitives */ = {
+			isa = PBXGroup;
+			children = (
+				E9168C0A49CF4DD54F3AF471 /* LineNumberRulerView.swift */,
+			);
+			path = Primitives;
 			sourceTree = "<group>";
 		};
 		FA31921E83CC3872D5A63179 /* State */ = {
@@ -300,6 +354,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				96AE2A53D7CDDB1E69F1ADD4 /* AppShellTests.swift in Sources */,
+				9EF8B73CCC7FD9AC346C33B4 /* SQLHighlighterTests.swift in Sources */,
 				AD7AF14BB37E9155F1E6BA92 /* SmokeTests.swift in Sources */,
 				41FC622006AEA90194C55E1C /* WorkspaceTests.swift in Sources */,
 			);
@@ -310,19 +365,28 @@
 			buildActionMask = 2147483647;
 			files = (
 				FD8BEF73F7DD813765AE1046 /* AppState.swift in Sources */,
+				F81770509502BE5EE259B201 /* CellContentView.swift in Sources */,
 				B110BF67FD0DD44D789DCDE1 /* ColorLabelPalette.swift in Sources */,
 				865E620E2152D3ABD4FFC4C0 /* ConnectionFormView.swift in Sources */,
 				B45CDB21D55EF62D5ACE4D23 /* ConnectionStore.swift in Sources */,
 				95BF5ACA2A8ED0244DE56170 /* DatabaseConnectionManager.swift in Sources */,
 				147B795560F459FB749F45C4 /* DatabaseTreeView.swift in Sources */,
 				2EBE02045490D8FA81074615 /* DriverProviding.swift in Sources */,
+				C268F51CF084768D7CF0FBF6 /* LineNumberRulerView.swift in Sources */,
 				BDB6932E6879D19E604C25B1 /* Loadable.swift in Sources */,
 				BF8D572B1FE2BBC289BE7C0D /* NativQLApp.swift in Sources */,
+				04624A35599C4780DDBDA03B /* QueryEditorView.swift in Sources */,
 				71B9FAE846D409A1CC474E52 /* QueryTab.swift in Sources */,
+				6D75D1284D30EF4C46207F98 /* ResultsFooterView.swift in Sources */,
+				5227B27B158CC67F5F35F1E2 /* ResultsGridView.swift in Sources */,
 				42D407F0740772125865F400 /* RootView.swift in Sources */,
+				890408BF8D777497CEBBC9AF /* SQLHighlighter.swift in Sources */,
 				D804DDE300842A3E4DBCAD04 /* SidebarView.swift in Sources */,
 				18399C5C842009739F18A6E3 /* SidebarViewModel.swift in Sources */,
+				A3FCCD4E3AAFC255781B9993 /* TabBarView.swift in Sources */,
+				DD1A568C9CCDF595ADA60A3E /* VSplitLayout.swift in Sources */,
 				C41E7831BD06D8802D68DECF /* WelcomeView.swift in Sources */,
+				A86E6433A93C8639BD61FD53 /* WorkspaceView.swift in Sources */,
 				58B83E7101F5CC70DE4619D9 /* WorkspaceViewModel.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

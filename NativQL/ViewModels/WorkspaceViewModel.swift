@@ -21,6 +21,9 @@ final class WorkspaceViewModel {
 
     private(set) var tabs: [QueryTab] = []
     var activeTabId: UUID?
+    /// Bumped whenever a tab's result transitions to `.loaded`; lets the
+    /// results grid distinguish fresh data from unrelated re-renders.
+    private(set) var gridRevision = 0
 
     /// Monotonic "Query N" counters, per connection.
     private var queryCounters: [UUID: Int] = [:]
@@ -109,6 +112,7 @@ final class WorkspaceViewModel {
         mutate(tab.id) { $0.result = .loading }
         do {
             let result = try await driver.execute(text)
+            gridRevision += 1
             mutate(tab.id) { $0.result = .loaded(result) }
         } catch {
             mutate(tab.id) { $0.result = .error(error.localizedDescription) }
@@ -139,6 +143,7 @@ final class WorkspaceViewModel {
                 offset: pageIndex * browse.pageSize
             )
             let elapsedMilliseconds = Date().timeIntervalSince(startedAt) * 1000
+            gridRevision += 1
             mutate(tab.id) {
                 var state = $0.browse
                 let previousEstimate = state?.totalEstimate

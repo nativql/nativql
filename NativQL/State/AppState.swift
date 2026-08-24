@@ -111,4 +111,7 @@ final class AppState {
     func driver(for id: UUID) -> (any DatabaseDriver)? {
         manager.driver(for: id)
     }
+
+    /// Dependency slice for workspace view models (the live-driver registry).
+    var driverProvider: any DriverProviding { manager }
 }

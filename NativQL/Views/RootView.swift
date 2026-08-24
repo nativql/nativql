@@ -27,32 +27,22 @@ struct RootView: View {
     }
 }
 
-/// Header + database tree + Batch 5 placeholder footer for a connected profile.
+/// Header + database tree + Batch 5 query workspace for a connected profile.
 struct ConnectionDetailView: View {
     let connection: ConnectionConfig
 
     @Environment(AppState.self) private var appState
-    @State private var viewModel: SidebarViewModel?
+    @State private var treeViewModel: SidebarViewModel?
 
     var body: some View {
         VStack(spacing: 0) {
             header
             Divider()
-            if let viewModel {
-                DatabaseTreeView(viewModel: viewModel)
-            } else {
-                ProgressView()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            HStack(spacing: 0) {
+                tree
+                Divider()
+                WorkspaceView(connectionId: connection.id)
             }
-            Divider()
-            HStack {
-                Spacer()
-                Label("Query workspace arrives in Batch 5", systemImage: "hammer")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                Spacer()
-            }
-            .padding(.vertical, 6)
         }
         .toolbar {
             ToolbarItem(placement: .destructiveAction) {
@@ -63,8 +53,20 @@ struct ConnectionDetailView: View {
         }
         .task(id: connection.id) {
             let model = SidebarViewModel { appState.driver(for: connection.id) }
-            viewModel = model
+            treeViewModel = model
             await model.loadDatabases()
+        }
+    }
+
+    @ViewBuilder
+    private var tree: some View {
+        if let treeViewModel {
+            DatabaseTreeView(viewModel: treeViewModel)
+                .frame(width: 240)
+        } else {
+            ProgressView()
+                .frame(width: 240)
+                .frame(maxHeight: .infinity)
         }
     }
 
