@@ -211,6 +211,12 @@ final class WorkspaceViewModel {
 
     // MARK: - Private
 
+    /// Connected driver for the active tab's connection; nil when disconnected.
+    func connectedDriverForActiveTab() async -> (any DatabaseDriver)? {
+        guard let tab = activeTab else { return nil }
+        return await connectedDriver(for: tab.connectionId)
+    }
+
     private func connectedDriver(for connectionId: UUID) async -> (any DatabaseDriver)? {
         guard let driver = drivers.driver(for: connectionId) else { return nil }
         return await drivers.isConnected(connectionId) ? driver : nil

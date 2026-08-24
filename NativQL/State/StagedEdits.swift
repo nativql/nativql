@@ -35,3 +35,10 @@ enum StagedChange: Equatable {
 struct TabStagedEdits: Equatable {
     var changes: [StagedChange] = []
 }
+
+/// Identifies one grid cell by data-row index and result-column index for
+/// staged-edit overlays and badges.
+struct StagedCellRef: Hashable {
+    let row: Int
+    let column: Int
+}

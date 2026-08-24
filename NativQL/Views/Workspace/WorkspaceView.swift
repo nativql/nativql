@@ -2,13 +2,15 @@ import SwiftUI
 import NativQLKit
 
 /// The per-connection query workspace: tab strip, editor above results grid,
-/// ⌘T / ⌘R / ⌘↩ shortcuts, and table-browse wiring from the sidebar tree.
+/// ⌘T / ⌘R / ⌘↩ / ⌘S shortcuts, and table-browse wiring from the sidebar tree.
 struct WorkspaceView: View {
     let connectionId: UUID
 
     @Environment(AppState.self) private var appState
     @State private var viewModel: WorkspaceViewModel?
+    @State private var editorViewModel: BrowseEditorViewModel?
     @State private var topFraction: CGFloat = 0.4
+    @State private var commitErrorMessage: String?
 
     var body: some View {
         Group {
@@ -26,6 +28,17 @@ struct WorkspaceView: View {
             guard let viewModel, let selected else { return }
             openBrowse(viewModel, table: selected)
         }
+        .alert(
+            "Commit failed",
+            isPresented: Binding(
+                get: { commitErrorMessage != nil },
+                set: { if !$0 { commitErrorMessage = nil } }
+            )
+        ) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(commitErrorMessage ?? "")
+        }
     }
 
     private func content(_ viewModel: WorkspaceViewModel) -> some View {
@@ -41,6 +54,7 @@ struct WorkspaceView: View {
         .background(invisibleShortcutButtons(viewModel))
         .onChange(of: viewModel.activeTabId) { _, _ in
             loadBrowsePageIfIdle(viewModel)
+            refreshEditorDecision()
         }
     }
 
@@ -66,20 +80,52 @@ struct WorkspaceView: View {
 
     private func resultsPane(_ viewModel: WorkspaceViewModel) -> some View {
         VStack(spacing: 0) {
+            if isBrowseMode(viewModel), let reason = editorViewModel?.reasonText {
+                ReadOnlyBanner(reason: reason)
+                Divider()
+            }
             ResultsGridView(
-                columns: viewModel.activeTab?.result.value?.columns ?? [],
-                rows: viewModel.activeTab?.result.value?.rows ?? [],
+                columns: activeColumns,
+                rows: activeRows,
                 reloadKey: reloadKey(viewModel),
                 allowsSort: viewModel.activeTab?.isBrowseMode ?? false,
                 sort: viewModel.activeTab?.browse?.sort,
                 onSortClick: { columnName in
                     Task { await viewModel.setSort(columnName: columnName) }
+                },
+                allowsEditing: editorViewModel?.isEditable ?? false,
+                stagedCells: editorStagedCells,
+                pendingInsertRows: editorViewModel?.pendingInserts().map(\.values) ?? [],
+                onStageCell: { row, column, text in
+                    stageCellEdit(row: row, column: column, text: text)
+                },
+                onStageInsertedCell: { insertIndex, column, text in
+                    editorViewModel?.stageInsertedCell(insertIndex: insertIndex, columnIndex: column, text: text)
+                },
+                onSetNull: { row, column in
+                    setCellNull(row: row, column: column)
+                },
+                onDeleteRows: { indexes in
+                    editorViewModel?.deleteRows(
+                        at: indexes,
+                        rows: activeRows,
+                        columns: activeColumns,
+                        pkColumnNames: editorViewModel?.primaryKeyNames() ?? []
+                    )
+                },
+                onRevertCell: { row, column in
+                    guard column < activeColumns.count else { return }
+                    editorViewModel?.revertCell(row: row, columnName: activeColumns[column].name)
                 }
             )
             Divider()
             ResultsFooterView(
                 result: viewModel.activeTab?.result,
                 browse: viewModel.activeTab?.browse,
+                dirtyCount: editorViewModel?.dirtyCount ?? 0,
+                dirtySummary: editorViewModel?.stagedSummary ?? "",
+                onCommit: { commitStagedEdits(viewModel) },
+                onRevertAll: { editorViewModel?.revertAll() },
                 onNextPage: { Task { await viewModel.nextPage() } },
                 onPrevPage: { Task { await viewModel.prevPage() } }
             )
@@ -113,10 +159,77 @@ struct WorkspaceView: View {
 
             Button("Run Query (⌘↩)") { run(viewModel) }
                 .keyboardShortcut(.return, modifiers: .command)
+
+            Button("Commit Staged Edits (⌘S)") { commitStagedEdits(viewModel) }
+                .keyboardShortcut("s", modifiers: .command)
         }
         .opacity(0)
         .accessibilityHidden(true)
         .frame(width: 0, height: 0)
+    }
+
+    // MARK: - Row editing helpers
+
+    private var activeColumns: [ColumnInfo] {
+        viewModel?.activeTab?.result.value?.columns ?? []
+    }
+
+    private var activeRows: [[SQLValue]] {
+        viewModel?.activeTab?.result.value?.rows ?? []
+    }
+
+    private var editorStagedCells: [StagedCellRef: SQLValue] {
+        editorViewModel?.stagedCellMap(columns: activeColumns) ?? [:]
+    }
+
+    private func isBrowseMode(_ viewModel: WorkspaceViewModel) -> Bool {
+        viewModel.activeTab?.isBrowseMode ?? false
+    }
+
+    private func stageCellEdit(row: Int, column: Int, text: String) {
+        guard let editor = editorViewModel,
+              column < activeColumns.count, row < activeRows.count else { return }
+        let columnName = activeColumns[column].name
+        editor.stageCell(
+            row: row,
+            columnName: columnName,
+            original: activeRows[row][column],
+            text: text,
+            pkValues: editor.pkBindings(rowIndex: row, rows: activeRows, columns: activeColumns)
+        )
+    }
+
+    private func setCellNull(row: Int, column: Int) {
+        guard let editor = editorViewModel,
+              column < activeColumns.count, row < activeRows.count else { return }
+        let columnName = activeColumns[column].name
+        editor.setCellNull(
+            row: row,
+            columnName: columnName,
+            original: activeRows[row][column],
+            pkValues: editor.pkBindings(rowIndex: row, rows: activeRows, columns: activeColumns)
+        )
+    }
+
+    /// Commits staged edits for the active tab; success reloads the browse
+    /// page, failure keeps staging and shows an alert.
+    private func commitStagedEdits(_ viewModel: WorkspaceViewModel) {
+        guard let editor = editorViewModel, editor.dirtyCount > 0 else { return }
+        Task {
+            await editor.commit()
+            if let error = editor.lastCommitError {
+                commitErrorMessage = error
+            } else {
+                await viewModel.loadCurrentPage()
+                refreshEditorDecision()
+            }
+        }
+    }
+
+    private func refreshEditorDecision() {
+        Task {
+            await editorViewModel?.refreshDecision()
+        }
     }
 
     // MARK: - Helpers
@@ -127,7 +240,9 @@ struct WorkspaceView: View {
 
     private func reloadKey(_ viewModel: WorkspaceViewModel) -> String {
         let tabId = viewModel.activeTabId?.uuidString ?? "none"
-        return "\(tabId)#\(viewModel.gridRevision)"
+        let revision = viewModel.gridRevision
+        let dirty = editorViewModel?.dirtyCount ?? 0
+        return "\(tabId)#\(revision)#\(dirty)"
     }
 
     private func editorBinding(
@@ -149,6 +264,15 @@ struct WorkspaceView: View {
         let model = WorkspaceViewModel(drivers: appState.driverProvider)
         model.openQueryTab(connectionId: connectionId)
         viewModel = model
+        let service = RowOperationsService()
+        editorViewModel = BrowseEditorViewModel(
+            service: service,
+            tabProvider: { [weak model] in model?.activeTab },
+            driverResolver: { [weak model] in
+                await model?.connectedDriverForActiveTab()
+            }
+        )
+        refreshEditorDecision()
         if let selected = appState.selectedTable,
            appState.selectedConnectionId == connectionId {
             openBrowse(model, table: selected)
@@ -157,6 +281,7 @@ struct WorkspaceView: View {
 
     private func openBrowse(_ viewModel: WorkspaceViewModel, table ref: TableRef) {
         viewModel.openBrowseTable(ref, connectionId: connectionId)
+        refreshEditorDecision()
         Task {
             await viewModel.loadCurrentPage()
         }
@@ -168,6 +293,29 @@ struct WorkspaceView: View {
         Task {
             await viewModel.loadCurrentPage()
         }
+    }
+}
+
+/// Thin strip above the results explaining why a browsed table is read-only.
+private struct ReadOnlyBanner: View {
+    let reason: String
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "lock.fill")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Text(reason)
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .lineLimit(2)
+            Spacer()
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 4)
+        .background(Color(nsColor: .controlBackgroundColor))
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Read only: \(reason)")
     }
 }
 

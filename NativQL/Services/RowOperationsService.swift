@@ -75,6 +75,13 @@ final class RowOperationsService {
             .map { ColumnInfo(name: $0, dataType: "", isPrimaryKey: true) }
     }
 
+    /// Synchronous read of an already-resolved primary key cache; empty when
+    /// `resolveEditability` has not run for this table yet.
+    func cachedPrimaryKeyInfos(for ref: TableRef) -> [ColumnInfo] {
+        ((primaryKeyCache[ref] ?? []) ?? [])
+            .map { ColumnInfo(name: $0, dataType: "", isPrimaryKey: true) }
+    }
+
     private func primaryKeyNames(for ref: TableRef, driver: any DatabaseDriver) async -> [String]? {
         if let cached = primaryKeyCache[ref] { return cached }
         let resolved = try? await driver.primaryKey(of: ref)

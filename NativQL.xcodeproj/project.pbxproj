@@ -34,6 +34,7 @@
 		B110BF67FD0DD44D789DCDE1 /* ColorLabelPalette.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04AC0E0A4BD09ADB6BE54599 /* ColorLabelPalette.swift */; };
 		B45CDB21D55EF62D5ACE4D23 /* ConnectionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B564F1C47409C54626ECE76 /* ConnectionStore.swift */; };
 		BDB6932E6879D19E604C25B1 /* Loadable.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38D3B7707522F5ADB590FE1C /* Loadable.swift */; };
+		BE015D7DE92F8E0E082BC584 /* EditableCellView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3DBBDC01E19D278FF7647C3 /* EditableCellView.swift */; };
 		BF8D572B1FE2BBC289BE7C0D /* NativQLApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = E08BB443FDF7763932642B19 /* NativQLApp.swift */; };
 		C268F51CF084768D7CF0FBF6 /* LineNumberRulerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9168C0A49CF4DD54F3AF471 /* LineNumberRulerView.swift */; };
 		C41E7831BD06D8802D68DECF /* WelcomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43B2A0FC48CC0430083DE5DC /* WelcomeView.swift */; };
@@ -78,6 +79,7 @@
 		8082EBF41EBFD7DEF43ECBE2 /* QueryEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QueryEditorView.swift; sourceTree = "<group>"; };
 		81AC4A6E786C62D3CD82CC27 /* WorkspaceViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceViewModel.swift; sourceTree = "<group>"; };
 		8B564F1C47409C54626ECE76 /* ConnectionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectionStore.swift; sourceTree = "<group>"; };
+		A3DBBDC01E19D278FF7647C3 /* EditableCellView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditableCellView.swift; sourceTree = "<group>"; };
 		A63B4A3A6F37FCA3D46B4B38 /* PostgresDriver */ = {isa = PBXFileReference; lastKnownFileType = folder; name = PostgresDriver; path = Packages/PostgresDriver; sourceTree = SOURCE_ROOT; };
 		AA2B5972F708C1F9D17F7227 /* DriverProviding.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DriverProviding.swift; sourceTree = "<group>"; };
 		AC469FC25BEA4D43EBFDB476 /* AppShellTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppShellTests.swift; sourceTree = "<group>"; };
@@ -187,6 +189,7 @@
 			isa = PBXGroup;
 			children = (
 				C4B078C52BC8AB2A24740F5D /* CellContentView.swift */,
+				A3DBBDC01E19D278FF7647C3 /* EditableCellView.swift */,
 				3FE50A7B1CB55F5AD78BED4C /* ResultsFooterView.swift */,
 				0A5E1DF088DC216929CC9832 /* ResultsGridView.swift */,
 			);
@@ -386,6 +389,7 @@
 				95BF5ACA2A8ED0244DE56170 /* DatabaseConnectionManager.swift in Sources */,
 				147B795560F459FB749F45C4 /* DatabaseTreeView.swift in Sources */,
 				2EBE02045490D8FA81074615 /* DriverProviding.swift in Sources */,
+				BE015D7DE92F8E0E082BC584 /* EditableCellView.swift in Sources */,
 				C268F51CF084768D7CF0FBF6 /* LineNumberRulerView.swift in Sources */,
 				BDB6932E6879D19E604C25B1 /* Loadable.swift in Sources */,
 				BF8D572B1FE2BBC289BE7C0D /* NativQLApp.swift in Sources */,

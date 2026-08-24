@@ -43,13 +43,17 @@ enum CellFormatter {
 }
 
 /// One grid cell: a non-editable text field rendering a single SQLValue.
-/// NULL renders as italic gray placeholder-style "NULL".
+/// NULL renders as italic gray placeholder-style "NULL"; staged cells get an
+/// amber tint plus a dot badge.
 final class CellContentView: NSTableCellView {
     private let label: NSTextField
+    private let stagedBadge: NSView
 
     init(identifier: NSUserInterfaceItemIdentifier) {
         let field = NSTextField(labelWithString: "")
         label = field
+        let badge = NSView()
+        stagedBadge = badge
         super.init(frame: .zero)
         self.identifier = identifier
 
@@ -63,16 +67,36 @@ final class CellContentView: NSTableCellView {
         field.translatesAutoresizingMaskIntoConstraints = false
         addSubview(field)
         textField = field
+
+        badge.wantsLayer = true
+        badge.layer?.backgroundColor = NSColor.systemOrange.cgColor
+        badge.layer?.cornerRadius = 3
+        badge.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(badge)
+
         NSLayoutConstraint.activate([
             field.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 6),
             field.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -6),
             field.centerYAnchor.constraint(equalTo: centerYAnchor),
+            badge.topAnchor.constraint(equalTo: topAnchor, constant: 2),
+            badge.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -3),
+            badge.widthAnchor.constraint(equalToConstant: 6),
+            badge.heightAnchor.constraint(equalToConstant: 6),
         ])
     }
 
     @available(*, unavailable)
     required init?(coder: NSCoder) {
         fatalError("init(coder:) is not supported")
+    }
+
+    /// Toggles the staged-change affordances; must be called on every reuse.
+    func setStaged(_ staged: Bool) {
+        wantsLayer = true
+        layer?.backgroundColor = staged
+            ? NSColor.systemOrange.withAlphaComponent(0.22).cgColor
+            : NSColor.clear.cgColor
+        stagedBadge.isHidden = !staged
     }
 
     func render(_ value: SQLValue?) {

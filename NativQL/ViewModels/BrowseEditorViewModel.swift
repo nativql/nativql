@@ -75,6 +75,39 @@ final class BrowseEditorViewModel {
         return service.pendingInserts(for: tab.id)
     }
 
+    /// Cached primary key column names for the browsed table (empty until a
+    /// decision has been resolved).
+    func primaryKeyNames() -> [String] {
+        guard let ref = tabProvider()?.browse?.ref else { return [] }
+        return service.cachedPrimaryKeyInfos(for: ref).map(\.name)
+    }
+
+    /// Primary key bindings for one browsed row, keyed by column name; empty
+    /// for out-of-range rows (pending inserts carry no key).
+    func pkBindings(rowIndex: Int, rows: [[SQLValue]], columns: [ColumnInfo]) -> [String: SQLValue] {
+        guard let ref = tabProvider()?.browse?.ref, rowIndex < rows.count else { return [:] }
+        let row = rows[rowIndex]
+        var bindings: [String: SQLValue] = [:]
+        for primaryKey in service.cachedPrimaryKeyInfos(for: ref) {
+            guard let columnIndex = columns.firstIndex(where: { $0.name == primaryKey.name }),
+                  columnIndex < row.count else { continue }
+            bindings[primaryKey.name] = row[columnIndex]
+        }
+        return bindings
+    }
+
+    /// Staged values keyed by grid position so cells can render amber + dot.
+    func stagedCellMap(columns: [ColumnInfo]) -> [StagedCellRef: SQLValue] {
+        guard let tab = tabProvider(), let staged = service.stagedEdits(for: tab.id) else { return [:] }
+        var map: [StagedCellRef: SQLValue] = [:]
+        for change in staged.changes {
+            guard case .cell(let edit) = change,
+                  let columnIndex = columns.firstIndex(where: { $0.name == edit.columnName }) else { continue }
+            map[StagedCellRef(row: edit.rowIndex, column: columnIndex)] = edit.newValue
+        }
+        return map
+    }
+
     // MARK: - Handlers
 
     func refreshDecision() async {

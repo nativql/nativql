@@ -369,4 +369,47 @@ final class RowEditingTests: XCTestCase {
         XCTAssertEqual(editor.dirtyCount, 1)
         XCTAssertEqual(editor.stagedSummary, "1 edited")
     }
+
+    // MARK: - Grid wiring helpers
+
+    func testEditorPkBindingsExtractsPrimaryKeyValuesForRowAfterResolution() async {
+        let driver = EditingDriver()
+        let service = makeService()
+        let editor = BrowseEditorViewModel(
+            service: service,
+            tabProvider: { [tab] in tab },
+            driverResolver: { driver }
+        )
+        await editor.refreshDecision()
+
+        let bindings = editor.pkBindings(
+            rowIndex: 0,
+            rows: [[.int(1), .string("a@x.io"), .int(30)], [.int(2), .null, .int(40)]],
+            columns: columns
+        )
+
+        XCTAssertEqual(bindings, ["id": .int(1)])
+        XCTAssertTrue(editor.pkBindings(
+            rowIndex: 9,
+            rows: [[.int(1)]],
+            columns: columns
+        ).isEmpty, "out-of-range rows (pending inserts) carry no pk bindings")
+    }
+
+    func testEditorStagedCellMapKeysStagedValuesByRowAndColumn() throws {
+        let service = makeService()
+        let editor = BrowseEditorViewModel(
+            service: service,
+            tabProvider: { [tab] in tab },
+            driverResolver: { EditingDriver() }
+        )
+        service.stageCellEdit(
+            tabId: tab.id, rowIndex: 0, columnName: "email",
+            original: .string("a@x.io"), newValue: .null, pkValues: ["id": .int(1)]
+        )
+
+        let map = editor.stagedCellMap(columns: columns)
+
+        XCTAssertEqual(map, [StagedCellRef(row: 0, column: 1): SQLValue.null])
+    }
 }

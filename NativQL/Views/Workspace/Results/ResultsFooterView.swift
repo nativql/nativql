@@ -2,10 +2,15 @@ import SwiftUI
 import NativQLKit
 
 /// Status strip under the results grid: row count · elapsed time, or the
-/// error message; browse mode adds ‹ prev / page i/N / next › controls.
+/// error message; browse mode adds ‹ prev / page i/N / next › controls and,
+/// when edits are staged, the ● N staged · ⌘S commit · Revert all group.
 struct ResultsFooterView: View {
     let result: Loadable<QueryResult>?
     let browse: BrowseState?
+    var dirtyCount: Int = 0
+    var dirtySummary: String = ""
+    var onCommit: () -> Void = {}
+    var onRevertAll: () -> Void = {}
     var onNextPage: () -> Void
     var onPrevPage: () -> Void
 
@@ -17,6 +22,11 @@ struct ResultsFooterView: View {
             }
             status
             Spacer(minLength: 8)
+            if browse != nil, dirtyCount > 0 {
+                stagedGroup
+                Divider()
+                    .frame(height: 14)
+            }
             if browse != nil {
                 pager
             }
@@ -24,6 +34,28 @@ struct ResultsFooterView: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 5)
         .background(Color(nsColor: .windowBackgroundColor))
+    }
+
+    private var stagedGroup: some View {
+        HStack(spacing: 8) {
+            Circle()
+                .fill(Color.orange)
+                .frame(width: 7, height: 7)
+            Text("\(dirtyCount) staged")
+                .font(.footnote.monospacedDigit())
+                .foregroundStyle(.secondary)
+                .help(dirtySummary.isEmpty ? "Staged changes" : "Staged: \(dirtySummary)")
+            Button("Commit") {
+                onCommit()
+            }
+            .controlSize(.small)
+            .help("Commit staged changes (⌘S)")
+            Button("Revert all") {
+                onRevertAll()
+            }
+            .controlSize(.small)
+            .help("Discard all staged changes")
+        }
     }
 
     @ViewBuilder
