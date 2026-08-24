@@ -52,6 +52,18 @@ struct ConnectionFormView: View {
             && !user.trimmingCharacters(in: .whitespaces).isEmpty
     }
 
+    /// Marks the port as user-touched only when the field itself writes, so the
+    /// kind picker can keep restoring defaults until then.
+    private var portBinding: Binding<Int> {
+        Binding(
+            get: { port },
+            set: {
+                port = $0
+                portTouched = true
+            }
+        )
+    }
+
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
@@ -73,8 +85,7 @@ struct ConnectionFormView: View {
                         }
 
                         TextField("Host", text: $host)
-                        TextField("Port", value: $port, format: .number.grouping(.never))
-                            .onChange(of: port) { _, _ in portTouched = true }
+                        TextField("Port", value: portBinding, format: .number.grouping(.never))
                         TextField("User", text: $user)
                         SecureField("Password", text: $password)
                         TextField("Database (optional)", text: $database)
@@ -213,6 +224,7 @@ struct ConnectionFormView: View {
             if name.trimmingCharacters(in: .whitespaces).isEmpty {
                 name = parsed.name
             }
+            pastedURL = ""
         } catch ConnectionStringParserError.unsupportedScheme(let scheme) {
             parseError = "Unsupported scheme “\(scheme)” — use postgresql:// or mysql://"
         } catch {

@@ -71,3 +71,13 @@ NativQLTests/
 xcodebuild -project NativQL.xcodeproj -scheme NativQL test CODE_SIGNING_ALLOWED=NO | tail -1 && \
 open .derived/Build/Products/Debug/NativQL.app && sleep 3 && pgrep -x NativQL && osascript -e 'tell application "NativQL" to quit'
 ```
+
+## Deviations & decisions
+
+- **Form/tree view models folded into views/AppState**: accepted consciously —
+  form validation is view-local state; tree logic lives in SidebarViewModel and
+  gains integration coverage when Batch 5 wires selection into the workspace.
+- **willTerminateNotification instead of scenePhase**: Xcode 26.3 toolchain
+  miscompiles the macOS-14 two-param onChange overload only in RootView;
+  notification fires on Cmd+Q + last-window-close (same semantics). Revisit on
+  toolchain update.
