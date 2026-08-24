@@ -409,3 +409,306 @@ extension IntegrationTests {
         }
     }
 }
+
+// MARK: - Browse, explain, admin, mutations, cancel (Batch 3 Task D)
+extension IntegrationTests {
+    /// 25 seeded rows (id 1…25) with an index-free sort column; ANALYZE makes
+    /// TABLE_ROWS a usable total estimate.
+    private func makeBrowseFixture(_ driver: MySQLDriver) async throws {
+        _ = try await driver.execute(
+            """
+            DROP DATABASE IF EXISTS b3d_test;
+            CREATE DATABASE b3d_test;
+            CREATE TABLE b3d_test.nums(id INT PRIMARY KEY, val VARCHAR(20));
+            """
+        )
+        var insertValues: [String] = []
+        for n in 1...25 {
+            insertValues.append("(\(n), 'row-\(String(format: "%02d", n))')")
+        }
+        _ = try await driver.execute(
+            "INSERT INTO b3d_test.nums VALUES " + insertValues.joined(separator: ", ")
+        )
+        _ = try await driver.execute("ANALYZE TABLE b3d_test.nums")
+    }
+
+    private func dropBrowseFixture(_ driver: MySQLDriver) async {
+        _ = try? await driver.execute("DROP DATABASE IF EXISTS b3d_test")
+    }
+
+    private var numsRef: TableRef {
+        TableRef(database: "b3d_test", name: "nums")
+    }
+
+    func testBrowseSortsAndWindowsExactly() async throws {
+        let driver = try makeLiveDriver()
+        defer { Task { await driver.disconnect() } }
+
+        try await driver.connect(makeConfig())
+        try await self.makeBrowseFixture(driver)
+        defer { Task { await self.dropBrowseFixture(driver) } }
+
+        // Ascending first page.
+        let asc = try await driver.browseRows(self.numsRef, sort: SortSpec(columnName: "id", ascending: true), limit: 10, offset: 0)
+        XCTAssertEqual(asc.columns.map(\.name), ["id", "val"])
+        XCTAssertEqual(asc.rows.map { $0[0] }, (1...10).map(SQLValue.int))
+        XCTAssertEqual(asc.rows[1][1], .string("row-02"))
+        XCTAssertNotNil(asc.totalCountEstimate, "TABLE_ROWS estimate must be populated after ANALYZE")
+        XCTAssertGreaterThanOrEqual(asc.totalCountEstimate ?? 0, 20,
+                                    "InnoDB estimate may drift slightly below the exact count")
+
+        // Descending tail window: ids 5…1.
+        let descTail = try await driver.browseRows(self.numsRef, sort: SortSpec(columnName: "id", ascending: false), limit: 5, offset: 20)
+        XCTAssertEqual(descTail.rows.map { $0[0] }, stride(from: 5, through: 1, by: -1).map(SQLValue.int))
+
+        // Middle window of the descending order (25…1): offset 8 starts at id 17.
+        let midDesc = try await driver.browseRows(self.numsRef, sort: SortSpec(columnName: "id", ascending: false), limit: 5, offset: 8)
+        XCTAssertEqual(midDesc.rows.map { $0[0] }, stride(from: 17, through: 13, by: -1).map(SQLValue.int))
+
+        // Offset past the end → empty grid. Known MySQLNIO 1.x limitation:
+        // no rows flow back means no column definitions either (documented).
+        let beyond = try await driver.browseRows(self.numsRef, sort: SortSpec(columnName: "id"), limit: 10, offset: 30)
+        XCTAssertTrue(beyond.rows.isEmpty)
+
+        // Invalid windows must be rejected client-side.
+        do {
+            _ = try await driver.browseRows(self.numsRef, sort: nil, limit: 0, offset: 0)
+            XCTFail("limit must be > 0")
+        } catch is DriverError {}
+        do {
+            _ = try await driver.browseRows(self.numsRef, sort: nil, limit: 5, offset: -1)
+            XCTFail("offset must be ≥ 0")
+        } catch is DriverError {}
+    }
+
+    func testExplainParsesTreeWithChildrenAndActuals() async throws {
+        let driver = try makeLiveDriver()
+        defer { Task { await driver.disconnect() } }
+
+        try await driver.connect(makeConfig())
+        try await self.makeBrowseFixture(driver)
+        defer { Task { await self.dropBrowseFixture(driver) } }
+
+        // WHERE id > 3 forces Filter over a range scan under the sort+limit;
+        // captured live shape: Limit → Sort → Filter → Index range scan.
+        let analyzed = try await driver.explain(
+            "SELECT * FROM b3d_test.nums WHERE id > 3 ORDER BY val LIMIT 5",
+            analyze: true
+        )
+        XCTAssertTrue(analyzed.operation.hasPrefix("Limit"), analyzed.operation)
+        XCTAssertNotNil(analyzed.actualRows)
+        XCTAssertNotNil(analyzed.actualTimeMilliseconds)
+        XCTAssertNotNil(analyzed.detail?.hasPrefix("cost="), "root carries a cost group")
+
+        XCTAssertEqual(analyzed.children.count, 1)
+        let sort = analyzed.children[0]
+        XCTAssertTrue(sort.operation.hasPrefix("Sort:"), sort.operation)
+
+        XCTAssertEqual(sort.children.count, 1)
+        let filter = sort.children[0]
+        XCTAssertTrue(filter.operation.hasPrefix("Filter:"), filter.operation)
+        XCTAssertEqual(filter.actualRows, 22, "22 rows survive id > 3")
+
+        XCTAssertEqual(filter.children.count, 1)
+        let scan = filter.children[0]
+        XCTAssertTrue(scan.operation.contains("Index range scan"), scan.operation)
+        XCTAssertTrue(scan.operation.contains("using PRIMARY"), scan.operation)
+        XCTAssertNotNil(scan.actualRows)
+        XCTAssertGreaterThan(scan.actualRows ?? -1, 0)
+        XCTAssertNotNil(scan.actualTimeMilliseconds)
+        XCTAssertTrue(scan.children.isEmpty)
+
+        // Without ANALYZE there are no actuals, but FORMAT=TREE keeps shape.
+        let plain = try await driver.explain(
+            "SELECT * FROM b3d_test.nums WHERE id > 3 ORDER BY val LIMIT 5",
+            analyze: false
+        )
+        XCTAssertNil(plain.actualRows)
+        XCTAssertNil(plain.actualTimeMilliseconds)
+        XCTAssertTrue(plain.operation.hasPrefix("Limit"), plain.operation)
+        XCTAssertEqual(plain.children.count, 1)
+        XCTAssertNotNil(plain.children[0].detail?.hasPrefix("cost="), "cost groups survive without ANALYZE")
+
+        // Server-side failures surface as queryFailed.
+        do {
+            _ = try await driver.explain("SELECT * FROM b3d_test.does_not_exist", analyze: false)
+            XCTFail("EXPLAIN of a missing relation must throw")
+        } catch let error as DriverError {
+            guard case .queryFailed = error else {
+                return XCTFail("expected queryFailed, got \(error)")
+            }
+        }
+    }
+
+    func testCreateAndDropDatabaseRoundTrip() async throws {
+        let driver = try makeLiveDriver()
+        defer { Task { await driver.disconnect() } }
+
+        try await driver.connect(makeConfig())
+
+        let name = "b3d_admin_" + UUID().uuidString.prefix(8).lowercased()
+        let before = try await driver.listDatabases()
+        XCTAssertFalse(before.contains { $0.name == name })
+
+        try await driver.createDatabase(named: name)
+        let during = try await driver.listDatabases()
+        XCTAssertTrue(during.contains { $0.name == name }, "created database must be listed")
+
+        try await driver.dropDatabase(named: name)
+        let after = try await driver.listDatabases()
+        XCTAssertFalse(after.contains { $0.name == name }, "dropped database must disappear")
+
+        // Dropping again must fail cleanly with a server message.
+        do {
+            try await driver.dropDatabase(named: name)
+            XCTFail("drop of nonexistent database must throw")
+        } catch let error as DriverError {
+            guard case .queryFailed(let message) = error else {
+                return XCTFail("expected queryFailed, got \(error)")
+            }
+            XCTAssertTrue(message.lowercased().contains("exist"), message)
+        }
+    }
+
+    func testExecuteMutationSumsAffectedRowsAndPersists() async throws {
+        let driver = try makeLiveDriver()
+        defer { Task { await driver.disconnect() } }
+
+        try await driver.connect(makeConfig())
+        _ = try await driver.execute(
+            """
+            DROP DATABASE IF EXISTS b3d_mut;
+            CREATE DATABASE b3d_mut;
+            CREATE TABLE b3d_mut.t_upd(id INT PRIMARY KEY, score INT);
+            INSERT INTO b3d_mut.t_upd VALUES (1, 0), (2, 0), (3, 0);
+            """
+        )
+        defer { Task { _ = try? await driver.execute("DROP DATABASE IF EXISTS b3d_mut") } }
+
+        let statement = MutationStatement(
+            kind: .update,
+            table: TableRef(database: "b3d_mut", name: "t_upd"),
+            sql: "UPDATE b3d_mut.t_upd SET score = ? WHERE id = ?",
+            batches: [
+                [.int(100), .int(1)],
+                [.int(200), .int(2)],
+                [.int(300), .int(3)],
+            ]
+        )
+
+        let total = try await driver.executeMutation(statement)
+        XCTAssertEqual(total, 3, "one affected row per batch must accumulate")
+
+        let check = try await driver.execute("SELECT id, score FROM b3d_mut.t_upd ORDER BY id")
+        XCTAssertEqual(check.rows, [[.int(1), .int(100)], [.int(2), .int(200)], [.int(3), .int(300)]],
+                       "all batches must have committed")
+    }
+
+    func testExecuteMutationRollsBackEverythingOnConstraintViolation() async throws {
+        let driver = try makeLiveDriver()
+        defer { Task { await driver.disconnect() } }
+
+        try await driver.connect(makeConfig())
+        _ = try await driver.execute(
+            """
+            DROP DATABASE IF EXISTS b3d_mut;
+            CREATE DATABASE b3d_mut;
+            CREATE TABLE b3d_mut.t_rb(id INT PRIMARY KEY, v INT);
+            INSERT INTO b3d_mut.t_rb VALUES (1, 0), (2, 0);
+            """
+        )
+        defer { Task { _ = try? await driver.execute("DROP DATABASE IF EXISTS b3d_mut") } }
+
+        // Batch 1 succeeds; batch 2 collides on the primary key → the whole
+        // transaction (including batch 1's change) must roll back.
+        let statement = MutationStatement(
+            kind: .update,
+            table: TableRef(database: "b3d_mut", name: "t_rb"),
+            sql: "UPDATE b3d_mut.t_rb SET id = ? WHERE id = ?",
+            batches: [
+                [.int(11), .int(1)],
+                [.int(11), .int(2)],
+            ]
+        )
+
+        do {
+            _ = try await driver.executeMutation(statement)
+            XCTFail("constraint violation must throw")
+        } catch let error as DriverError {
+            guard case .mutationFailed(let message) = error else {
+                return XCTFail("expected mutationFailed, got \(error)")
+            }
+            XCTAssertTrue(message.lowercased().contains("duplicate"), "server message expected: \(message)")
+        }
+
+        let after = try await driver.execute("SELECT id, v FROM b3d_mut.t_rb ORDER BY id")
+        XCTAssertEqual(after.rows, [[.int(1), .int(0)], [.int(2), .int(0)]],
+                       "zero changes may persist after the failed transaction")
+    }
+
+    func testExecuteMutationRejectsBatchBindCountMismatch() async throws {
+        let driver = try makeLiveDriver()
+        defer { Task { await driver.disconnect() } }
+
+        try await driver.connect(makeConfig())
+
+        let statement = MutationStatement(
+            kind: .update,
+            table: TableRef(database: "nativql_test", name: "whatever"),
+            sql: "UPDATE x SET a = ? WHERE b = ?",
+            batches: [[.int(1)]]
+        )
+        do {
+            _ = try await driver.executeMutation(statement)
+            XCTFail("bind-count mismatch must throw before touching the server")
+        } catch let error as DriverError {
+            guard case .mutationFailed = error else {
+                return XCTFail("expected mutationFailed, got \(error)")
+            }
+        }
+    }
+
+    func testCancelRunningQueryAbortsSleepPromptly() async throws {
+        let driver = try makeLiveDriver()
+        defer { Task { await driver.disconnect() } }
+
+        try await driver.connect(makeConfig())
+
+        // Row-streaming probe: a cartesian COUNT over information_schema runs
+        // for many seconds and surfaces ER 1317 when killed mid-stream.
+        // NOTE: function-only probes like `SELECT SLEEP(10)` are unsuitable —
+        // on MySQL 8.4 they consume the kill flag inside the function and
+        // return a normal result early (documented in cancelRunningQuery).
+        let clock = ContinuousClock()
+        let execTask = Task {
+            try await driver.execute(
+                "SELECT COUNT(*) FROM information_schema.columns x, information_schema.columns y"
+            )
+        }
+        try await Task.sleep(for: .milliseconds(200))
+
+        let cancelStart = clock.now
+        await driver.cancelRunningQuery()
+
+        do {
+            _ = try await execTask.value
+            XCTFail("the cancelled query must not complete successfully")
+        } catch let error as DriverError {
+            guard case .cancelled = error else {
+                return XCTFail("expected cancelled, got \(error)")
+            }
+            let elapsed = clock.now - cancelStart
+            XCTAssertLessThan(elapsed, .seconds(5), "cancellation must take effect promptly")
+        }
+
+        // The primary connection stays usable after the cancellation.
+        let stillAlive = try await driver.execute("SELECT 42")
+        XCTAssertEqual(stillAlive.rows, [[.int(42)]])
+    }
+
+    func testCancelRunningQueryWithoutConnectionIsNoop() async throws {
+        let driver = try makeLiveDriver()
+        // Not connected: must neither throw nor hang.
+        await driver.cancelRunningQuery()
+    }
+}

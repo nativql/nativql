@@ -347,8 +347,54 @@ public final class MySQLDriver: DatabaseDriver, @unchecked Sendable {
         return .queryFailed(String(reflecting: error))
     }
 
+    /// Best-effort by contract: opens a short-lived control connection from
+    /// the cached endpoint, asks the server to interrupt this session's
+    /// running statement, and closes again. `KILL QUERY` (unlike
+    /// `KILL CONNECTION`) aborts only the in-flight statement, so the session
+    /// stays usable afterwards. Any failure is swallowed so the primary
+    /// connection's state is never touched; no-op while disconnected.
+    ///
+    /// Interpolation safety: `sessionID` is a server-generated UInt64
+    /// (`CONNECTION_ID()`), which Swift renders as bare decimal digits — the
+    /// command text cannot be broken out of or injected into.
+    ///
+    /// Server quirk (observed on 8.4.4, cf. bug #45679): statements whose
+    /// entire work happens inside a function (`SELECT SLEEP(n)`,
+    /// `SELECT BENCHMARK(…)`) can return a normal result early instead of
+    /// surfacing ER 1317, because the kill flag is consumed inside the
+    /// function rather than by the executor between streamed rows. Row-
+    /// producing statements surface ER 1317, which ``mapExecutionError``
+    /// maps to `.cancelled`.
     public func cancelRunningQuery() async {
-        // Implemented in Task D alongside KILL QUERY.
+        guard let endpoint = self.activeEndpoint,
+              let sessionID = self.activeSessionID,
+              let eventLoopGroup = self.eventLoopGroup else {
+            return
+        }
+
+        do {
+            let address = try endpoint.socketAddress
+            let control = try await MySQLConnection.connect(
+                to: address,
+                username: endpoint.username,
+                database: endpoint.database ?? "",
+                password: endpoint.password,
+                tlsConfiguration: endpoint.tlsConfiguration,
+                serverHostname: endpoint.serverName,
+                logger: self.logger,
+                on: eventLoopGroup.next()
+            ).get()
+
+            do {
+                _ = try await control.simpleQuery("KILL QUERY \(sessionID)").get()
+            } catch {
+                // A failed kill must not prevent the control teardown below.
+                self.logger.debug("cancelRunningQuery: KILL failed: \(String(describing: error))")
+            }
+            try? await control.close().get()
+        } catch {
+            self.logger.debug("cancelRunningQuery: control connection failed: \(String(reflecting: error))")
+        }
     }
 
     // MARK: - Introspection (Task C)
@@ -358,32 +404,85 @@ public final class MySQLDriver: DatabaseDriver, @unchecked Sendable {
 
     // MARK: - Browsing & plans (Task D)
 
+    /// Reads one sorted window of rows (implementation in Introspection.swift,
+    /// next to the shared TABLE_ROWS helper).
     public func browseRows(
         _ table: TableRef,
         sort: SortSpec?,
         limit: Int,
         offset: Int
     ) async throws -> RowPage {
-        throw DriverError.unsupportedFeature("row browsing arrives in Batch 3 Task D")
+        try await self.browseRowsImpl(table, sort: sort, limit: limit, offset: offset)
     }
 
+    /// Runs `EXPLAIN ANALYZE <sql>` (or `EXPLAIN FORMAT=TREE <sql>` without
+    /// actuals) and parses the single tree cell into a plan node tree.
+    ///
+    /// Plain `EXPLAIN` returns the legacy tabular format rather than a tree,
+    /// hence FORMAT=TREE for `analyze: false`. The statement travels over
+    /// `simpleQuery` — EXPLAIN variants take no bind parameters, and the text
+    /// protocol avoids any prepared-statement restrictions on EXPLAIN forms.
+    /// The embedded SQL is the app editor's statement by definition of
+    /// EXPLAIN (same policy as PostgresDriver).
+    ///
+    /// The plan column has no binary wire encoding; the server always sends
+    /// it as text regardless of protocol.
     public func explain(_ sql: String, analyze: Bool) async throws -> ExplainPlanNode {
-        throw DriverError.unsupportedFeature("EXPLAIN parsing arrives in Batch 3 Task D")
+        guard let connection = self.activeConnection else {
+            throw DriverError.connectionFailed("Not connected")
+        }
+        let statement = analyze ? "EXPLAIN ANALYZE \(sql)" : "EXPLAIN FORMAT=TREE \(sql)"
+
+        do {
+            let rows = try await connection.simpleQuery(statement).get()
+            try Task.checkCancellation()
+            guard let row = rows.first,
+                  let cell = row.column("EXPLAIN")?.string, !cell.isEmpty else {
+                throw DriverError.queryFailed("EXPLAIN produced no parsable output")
+            }
+            do {
+                return try ExplainParser.parse(cell)
+            } catch {
+                throw DriverError.queryFailed("unparseable EXPLAIN output: \(error)")
+            }
+        } catch {
+            throw Self.mapExecutionError(error)
+        }
     }
 
     // MARK: - Admin (Task D)
 
+    /// Creates a database. Identifiers go through ``IdentifierQuoting``;
+    /// these statements carry no bindable values.
     public func createDatabase(named name: String) async throws {
-        throw DriverError.unsupportedFeature("database admin arrives in Batch 3 Task D")
+        try await self.runAdmin("CREATE DATABASE \(IdentifierQuoting.quote(name))")
     }
 
+    /// Drops a database. Plain `DROP DATABASE` per plan: dropping a missing
+    /// database surfaces the server's error.
     public func dropDatabase(named name: String) async throws {
-        throw DriverError.unsupportedFeature("database admin arrives in Batch 3 Task D")
+        try await self.runAdmin("DROP DATABASE \(IdentifierQuoting.quote(name))")
+    }
+
+    private func runAdmin(_ sql: String) async throws {
+        guard let connection = self.activeConnection else {
+            throw DriverError.connectionFailed("Not connected")
+        }
+        do {
+            _ = try await connection.simpleQuery(sql).get()
+        } catch {
+            throw Self.mapExecutionError(error)
+        }
     }
 
     // MARK: - Mutations (Task D)
 
+    /// Executes all batches in ONE transaction via ``MutationExecutor``
+    /// (see MutationExecutor.swift); returns total affected rows.
     public func executeMutation(_ statement: MutationStatement) async throws -> Int64 {
-        throw DriverError.unsupportedFeature("mutations arrive in Batch 3 Task D")
+        guard let connection = self.activeConnection else {
+            throw DriverError.connectionFailed("Not connected")
+        }
+        return try await MutationExecutor.execute(statement, on: connection, logger: self.logger)
     }
 }

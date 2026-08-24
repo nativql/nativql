@@ -83,6 +83,48 @@ final class ErrorClassificationUnitTests: XCTestCase {
     }
 }
 
+/// Execution-phase error mapping (Batch 3 Task D cancel path).
+final class ExecutionErrorMappingUnitTests: XCTestCase {
+    /// Builds a real server ERR packet by decoding wire bytes.
+    private func makeServerError(code: UInt16, message: String) -> MySQLError {
+        var payload = ByteBufferAllocator().buffer(capacity: 64)
+        payload.writeInteger(UInt8(0xFF))
+        payload.writeInteger(code, endianness: .little)
+        payload.writeString("#HY000")
+        payload.writeString(message)
+        var packet = MySQLPacket(payload: payload)
+        let decoded = try! MySQLProtocol.ERR_Packet.decode(
+            from: &packet,
+            capabilities: [.CLIENT_PROTOCOL_41]
+        )
+        return MySQLError.server(decoded)
+    }
+
+    func testServerQueryInterruptedMapsToCancelled() {
+        // ER_QUERY_INTERRUPTED (1317): what KILL QUERY surfaces on the
+        // primary connection for row-streaming statements.
+        let error = makeServerError(code: 1317, message: "Query execution was interrupted")
+        XCTAssertEqual(MySQLDriver.mapExecutionError(error), .cancelled)
+    }
+
+    func testCancellationErrorMapsToCancelled() {
+        XCTAssertEqual(MySQLDriver.mapExecutionError(CancellationError()), .cancelled)
+    }
+
+    func testOtherServerErrorsMapToQueryFailed() {
+        let error = makeServerError(code: 1146, message: "Table 'x.no' doesn't exist")
+        guard case .queryFailed(let message) = MySQLDriver.mapExecutionError(error) else {
+            return XCTFail("expected queryFailed")
+        }
+        XCTAssertEqual(message, "Table 'x.no' doesn't exist")
+    }
+
+    func testDriverErrorsPassThroughUnchanged() {
+        let original = DriverError.mutationFailed("boom")
+        XCTAssertEqual(MySQLDriver.mapExecutionError(original), original)
+    }
+}
+
 /// SSLMode → NIOSSL configuration mapping shapes.
 final class TLSMappingUnitTests: XCTestCase {
     func testDisableProducesNilConfiguration() throws {
@@ -261,5 +303,205 @@ final class IdentifierQuotingUnitTests: XCTestCase {
         XCTAssertEqual(IdentifierQuoting.quote(""), "``")
         // Dots must stay inside one quoted identifier, not split into parts.
         XCTAssertEqual(IdentifierQuoting.quote("db.tbl"), "`db.tbl`")
+    }
+}
+
+// MARK: - ExplainParser unit tests (Batch 3 Task D)
+
+/// Parses fixtures captured VERBATIM from the live MySQL 8.4 server
+/// (`EXPLAIN ANALYZE … \G`, dockerized compose service) — no connection
+/// required.
+final class ExplainParserUnitTests: XCTestCase {
+    /// Real output: join plan with cost groups, fractional per-loop row
+    /// averages, and a backtick-bearing Sort label.
+    private static let analyzedJoinFixture = """
+    -> Limit: 10 row(s)  (cost=23.8 rows=10) (actual time=0.0859..0.0998 rows=10 loops=1)
+        -> Nested loop inner join  (cost=23.8 rows=20) (actual time=0.0855..0.0988 rows=10 loops=1)
+            -> Sort: u.`name`  (cost=2.75 rows=25) (actual time=0.0574..0.0577 rows=7 loops=1)
+                -> Table scan on u  (cost=2.75 rows=25) (actual time=0.0345..0.0387 rows=25 loops=1)
+            -> Filter: (o.amount > 20.00)  (cost=0.603 rows=0.8) (actual time=0.00521..0.00553 rows=1.43 loops=7)
+                -> Index lookup on o using idx_user (user_id=u.id)  (cost=0.603 rows=2.4) (actual time=0.00473..0.00499 rows=2.14 loops=7)
+    """
+
+    /// Real output: a branch that never ran reports "(never executed)" and
+    /// carries scientific-notation timings on other nodes.
+    private static let neverExecutedFixture = """
+    -> Limit: 10 row(s)  (actual time=0.0593..0.0593 rows=0 loops=1)
+        -> Sort: u.`name`, limit input to 10 row(s) per chunk  (actual time=0.0588..0.0588 rows=0 loops=1)
+            -> Stream results  (cost=0.7 rows=1) (actual time=0.0328..0.0328 rows=0 loops=1)
+                -> Nested loop inner join  (cost=0.7 rows=1) (actual time=0.0225..0.0225 rows=0 loops=1)
+                    -> Filter: ((o.amount > 20.00) and (o.user_id is not null))  (cost=0.35 rows=1) (actual time=0.022..0.022 rows=0 loops=1)
+                        -> Table scan on o  (cost=0.35 rows=1) (actual time=0.00713..0.00713 rows=0 loops=1)
+                    -> Single-row index lookup on u using PRIMARY (id=o.user_id)  (cost=0.35 rows=1) (never executed)
+    """
+
+    /// Real output: `EXPLAIN FORMAT=TREE` — same shape, no actual groups.
+    private static let plainTreeFixture = """
+    -> Filter: (b3_probe_users.`name` = 'u3')  (cost=2.75 rows=2.5)
+        -> Table scan on b3_probe_users  (cost=2.75 rows=25)
+    """
+
+    func testParsesRootOperationCostAndActuals() throws {
+        let plan = try ExplainParser.parse(Self.analyzedJoinFixture)
+        XCTAssertEqual(plan.operation, "Limit: 10 row(s)")
+        XCTAssertEqual(plan.actualRows, 10)
+        XCTAssertEqual(plan.actualTimeMilliseconds!, 0.0998, accuracy: 1e-12)
+        XCTAssertEqual(plan.detail, "cost=23.8 rows=10")
+    }
+
+    func testParsesChildrenByIndentation() throws {
+        let plan = try ExplainParser.parse(Self.analyzedJoinFixture)
+        XCTAssertEqual(plan.children.count, 1, "root has one child chain")
+
+        let join = plan.children[0]
+        XCTAssertEqual(join.operation, "Nested loop inner join")
+
+        // Join's two branches: sorted outer + filtered inner lookup.
+        XCTAssertEqual(join.children.count, 2)
+        let sort = join.children[0]
+        XCTAssertEqual(sort.operation, "Sort: u.`name`")
+        let scan = sort.children[0]
+        XCTAssertEqual(scan.operation, "Table scan on u")
+        XCTAssertEqual(scan.actualRows, 25)
+        XCTAssertTrue(scan.children.isEmpty)
+
+        let filter = join.children[1]
+        XCTAssertEqual(filter.operation, "Filter: (o.amount > 20.00)")
+        // Fractional per-loop average rounds to nearest integer.
+        XCTAssertEqual(filter.actualRows, 1)
+
+        let indexLookup = filter.children[0]
+        XCTAssertEqual(indexLookup.operation, "Index lookup on o using idx_user (user_id=u.id)",
+                       "inline conditions stay part of the operation text")
+        XCTAssertEqual(indexLookup.actualRows, 2)
+        XCTAssertNotNil(indexLookup.actualTimeMilliseconds)
+    }
+
+    func testNeverExecutedBranchLeavesActualsNil() throws {
+        let plan = try ExplainParser.parse(Self.neverExecutedFixture)
+        XCTAssertEqual(plan.actualRows, 0)
+
+        let sort = plan.children[0]
+        XCTAssertTrue(sort.operation.contains("limit input to 10 row(s) per chunk"))
+
+        // Walk down to the join's second branch (the killed-off lookup).
+        let stream = sort.children[0]
+        let join = stream.children[0]
+        let lookup = join.children[1]
+        XCTAssertEqual(lookup.operation, "Single-row index lookup on u using PRIMARY (id=o.user_id)")
+        XCTAssertNil(lookup.actualRows, "(never executed) must leave actualRows nil")
+        XCTAssertNil(lookup.actualTimeMilliseconds)
+        XCTAssertNotNil(lookup.detail, "cost annotation still present")
+    }
+
+    func testPlainTreeWithoutActualsLeavesOptionalsNil() throws {
+        let plan = try ExplainParser.parse(Self.plainTreeFixture)
+        XCTAssertEqual(plan.operation, "Filter: (b3_probe_users.`name` = 'u3')")
+        XCTAssertEqual(plan.detail, "cost=2.75 rows=2.5")
+        XCTAssertNil(plan.actualRows)
+        XCTAssertNil(plan.actualTimeMilliseconds)
+
+        XCTAssertEqual(plan.children.count, 1)
+        XCTAssertEqual(plan.children[0].operation, "Table scan on b3_probe_users")
+        XCTAssertEqual(plan.children[0].detail, "cost=2.75 rows=25")
+        XCTAssertNil(plan.children[0].actualRows)
+    }
+
+    func testRootWithoutCostGroupStillParses() throws {
+        let fixture = """
+        -> Rows fetched before execution  (cost=0..0 rows=1) (actual time=125e-6..125e-6 rows=1 loops=1)
+        """
+        let plan = try ExplainParser.parse(fixture)
+        XCTAssertEqual(plan.operation, "Rows fetched before execution")
+        XCTAssertEqual(plan.actualRows, 1)
+        XCTAssertEqual(plan.actualTimeMilliseconds!, 125e-6, accuracy: 1e-15,
+                       "scientific notation times must parse")
+    }
+
+    func testEmptyOutputThrows() {
+        XCTAssertThrowsError(try ExplainParser.parse(""))
+        XCTAssertThrowsError(try ExplainParser.parse("\n   \n"))
+    }
+}
+
+// MARK: - MutationExecutor placeholder counting (Batch 3 Task D)
+
+/// MySQL-dialect `?` scanning — strings, identifiers, and comments must hide
+/// their placeholders; live SQL text must count them.
+final class PlaceholderCountUnitTests: XCTestCase {
+    func testCountsPlainPlaceholders() {
+        XCTAssertEqual(MutationExecutor.placeholderCount(in: "UPDATE t SET a = ? WHERE b = ? AND c = ?"), 3)
+        XCTAssertEqual(MutationExecutor.placeholderCount(in: "DELETE FROM t WHERE id = ?"), 1)
+        XCTAssertEqual(MutationExecutor.placeholderCount(in: "INSERT INTO t VALUES (?, ?, ?)"), 3)
+        XCTAssertEqual(MutationExecutor.placeholderCount(in: "UPDATE t SET a = 1"), 0)
+    }
+
+    func testIgnoresPlaceholdersInsideStringLiterals() {
+        XCTAssertEqual(
+            MutationExecutor.placeholderCount(in: #"UPDATE t SET a = 'x ? y' WHERE b = ?"#),
+            1
+        )
+        // Doubled quote inside the literal must not terminate it early.
+        XCTAssertEqual(
+            MutationExecutor.placeholderCount(in: "SELECT * FROM t WHERE note = 'it''s ? here' AND id = ?"),
+            1
+        )
+    }
+
+    func testBackslashEscapedQuoteKeepsPlaceholderInsideString() {
+        XCTAssertEqual(
+            MutationExecutor.placeholderCount(in: #"UPDATE t SET a = 'don\'t?' WHERE b = ?"#),
+            1
+        )
+        // Backslash at end of string escapes the closing quote…
+        XCTAssertEqual(
+            MutationExecutor.placeholderCount(in: #"SELECT 'ends with \' ?"#),
+            0,
+            "the ? sits inside an unterminated literal"
+        )
+    }
+
+    func testIgnoresPlaceholdersInsideDoubleQuotedLiterals() {
+        XCTAssertEqual(
+            MutationExecutor.placeholderCount(in: #"UPDATE t SET a = "x ? y" WHERE b = ?"#),
+            1
+        )
+    }
+
+    func testIgnoresPlaceholdersInsideBacktickIdentifiers() {
+        XCTAssertEqual(
+            MutationExecutor.placeholderCount(in: "UPDATE `weird ? name` SET a = ? WHERE id = ?"),
+            2
+        )
+        // Doubled backtick inside identifier stays inside.
+        XCTAssertEqual(MutationExecutor.placeholderCount(in: "SELECT `a``b ? c` FROM t"), 0)
+    }
+
+    func testIgnoresPlaceholdersInLineComments() {
+        // "--" comment (requires trailing whitespace per MySQL).
+        XCTAssertEqual(
+            MutationExecutor.placeholderCount(in: "-- filter rows ?\nWHERE id = ?"),
+            1
+        )
+        // "#" comment.
+        XCTAssertEqual(
+            MutationExecutor.placeholderCount(in: "# filter rows ?\nWHERE id = ?"),
+            1
+        )
+    }
+
+    func testDoubleDashWithoutWhitespaceIsNotAComment() {
+        // MySQL lexes a--? as subtraction of negation, so the ? is live SQL.
+        XCTAssertEqual(MutationExecutor.placeholderCount(in: "SELECT a--b ? FROM t"), 1)
+        // But "-- " with a space IS a comment.
+        XCTAssertEqual(MutationExecutor.placeholderCount(in: "SELECT a -- ?\nFROM t WHERE x = ?"), 1)
+    }
+
+    func testIgnoresPlaceholdersInsideBlockCommentsWithoutNesting() {
+        // MySQL block comments do NOT nest: first */ closes.
+        XCTAssertEqual(
+            MutationExecutor.placeholderCount(in: "/* outer ? */ SELECT ? /* trailing ? */"),
+            1
+        )
     }
 }
