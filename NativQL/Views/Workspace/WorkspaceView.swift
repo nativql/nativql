@@ -1,16 +1,26 @@
 import SwiftUI
+import SwiftData
 import NativQLKit
+import UniformTypeIdentifiers
 
 /// The per-connection query workspace: tab strip, editor above results grid,
-/// ⌘T / ⌘R / ⌘↩ / ⌘S shortcuts, and table-browse wiring from the sidebar tree.
+/// ⌘T / ⌘R / ⌘↩ / ⌘S / ⌘E shortcuts, table-browse wiring from the sidebar
+/// tree, history recording, page export, explain sheet, and toasts.
 struct WorkspaceView: View {
     let connectionId: UUID
 
     @Environment(AppState.self) private var appState
+    @Environment(SettingsStore.self) private var settings
+    @Environment(ToastCenter.self) private var toastCenter
+    @Environment(\.modelContext) private var modelContext
     @State private var viewModel: WorkspaceViewModel?
     @State private var editorViewModel: BrowseEditorViewModel?
     @State private var topFraction: CGFloat = 0.4
     @State private var commitErrorMessage: String?
+    @State private var explainSQL: String?
+    @State private var explainDriver: (any DatabaseDriver)?
+    @State private var isShowingSaveQueryPrompt = false
+    @State private var saveQueryName = ""
 
     var body: some View {
         Group {
@@ -28,6 +38,33 @@ struct WorkspaceView: View {
             guard let viewModel, let selected else { return }
             openBrowse(viewModel, table: selected)
         }
+        .onChange(of: appState.pendingEditorLoad) { _, pending in
+            guard let text = pending, let viewModel, let tab = viewModel.activeTab else { return }
+            viewModel.setEditorText(text, for: tab.id)
+            appState.pendingEditorLoad = nil
+            if appState.pendingEditorAutorun {
+                appState.pendingEditorAutorun = false
+                run(viewModel)
+            }
+        }
+        .sheet(isPresented: Binding(
+            get: { explainSQL != nil },
+            set: { if !$0 { explainSQL = nil; explainDriver = nil } }
+        )) {
+            if let sql = explainSQL, let driver = explainDriver {
+                ExplainSheet(sql: sql, driver: driver)
+            }
+        }
+        .alert(
+            "Save Query",
+            isPresented: $isShowingSaveQueryPrompt
+        ) {
+            TextField("Name", text: $saveQueryName)
+            Button("Save") { saveActiveEditorAsQuery() }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Saves the active editor's SQL to Saved Queries.")
+        }
         .alert(
             "Commit failed",
             isPresented: Binding(
@@ -38,6 +75,9 @@ struct WorkspaceView: View {
             Button("OK", role: .cancel) {}
         } message: {
             Text(commitErrorMessage ?? "")
+        }
+        .overlay(alignment: .bottom) {
+            ToastView(center: toastCenter)
         }
     }
 
@@ -52,6 +92,28 @@ struct WorkspaceView: View {
             }
         }
         .background(invisibleShortcutButtons(viewModel))
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    prepareExplain(viewModel)
+                } label: {
+                    Label("Explain", systemImage: "tree")
+                }
+                .keyboardShortcut("e", modifiers: .command)
+                .disabled(!ExplainGate.canRun(activeTab: viewModel.activeTab))
+                .help("Explain the current statement (⌘E)")
+            }
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    saveQueryName = ""
+                    isShowingSaveQueryPrompt = true
+                } label: {
+                    Label("Save Query", systemImage: "bookmark")
+                }
+                .disabled((viewModel.activeTab?.editorText.isEmpty ?? true))
+                .help("Save the active editor's SQL")
+            }
+        }
         .onChange(of: viewModel.activeTabId) { _, _ in
             loadBrowsePageIfIdle(viewModel)
             refreshEditorDecision()
@@ -72,7 +134,8 @@ struct WorkspaceView: View {
                     onSelectionChange: { start, end in
                         viewModel.setSelection(start: start, end: end, for: tab.id)
                     },
-                    onRun: { run(viewModel) }
+                    onRun: { run(viewModel) },
+                    fontSize: settings.editorFontSize
                 )
             }
         }
@@ -128,6 +191,9 @@ struct WorkspaceView: View {
                 onRevertAll: { editorViewModel?.revertAll() },
                 showsInsertRow: editorViewModel?.isEditable ?? false,
                 onInsertRow: { insertStagedRow(viewModel) },
+                canExport: !activeRows.isEmpty,
+                onSaveCSV: { exportCurrentPage(as: .csv) },
+                onSaveJSON: { exportCurrentPage(as: .json) },
                 onNextPage: { Task { await viewModel.nextPage() } },
                 onPrevPage: { Task { await viewModel.prevPage() } }
             )
@@ -223,18 +289,97 @@ struct WorkspaceView: View {
     }
 
     /// Commits staged edits for the active tab; success reloads the browse
-    /// page, failure keeps staging and shows an alert.
+    /// page, fires a toast, and failure shows an alert keeping staging.
     private func commitStagedEdits(_ viewModel: WorkspaceViewModel) {
         guard let editor = editorViewModel, editor.dirtyCount > 0 else { return }
+        let stagedCount = editor.dirtyCount
         Task {
             await editor.commit()
             if let error = editor.lastCommitError {
                 commitErrorMessage = error
             } else {
+                toastCenter.show("\(stagedCount) change\(stagedCount == 1 ? "" : "s") applied")
                 await viewModel.loadCurrentPage()
                 refreshEditorDecision()
             }
         }
+    }
+
+    // MARK: - Export
+
+    private enum PageExportFormat {
+        case csv, json
+
+        var fileExtension: String {
+            switch self {
+            case .csv: return "csv"
+            case .json: return "json"
+            }
+        }
+
+        var contentType: UTType {
+            switch self {
+            case .csv: return .commaSeparatedText
+            case .json: return .json
+            }
+        }
+    }
+
+    /// Saves the active page (or selection rows — v1 exports the whole page)
+    /// via NSSavePanel; ExportService builds the payload.
+    private func exportCurrentPage(as format: PageExportFormat) {
+        guard !activeRows.isEmpty else { return }
+        let service = ExportService()
+        let content: String
+        switch format {
+        case .csv: content = service.buildCSV(columns: activeColumns, rows: activeRows)
+        case .json: content = service.buildJSON(columns: activeColumns, rows: activeRows)
+        }
+
+        let baseName = exportBaseName()
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [format.contentType]
+        panel.nameFieldStringValue = service.suggestedFilename(tableOrQuery: baseName, ext: format.fileExtension)
+
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        do {
+            try content.write(to: url, atomically: true, encoding: .utf8)
+            toastCenter.show("Exported \(activeRows.count) rows to \(url.lastPathComponent)")
+        } catch {
+            toastCenter.show("Export failed: \(error.localizedDescription)")
+        }
+    }
+
+    private func exportBaseName() -> String {
+        if let browse = viewModel?.activeTab?.browse {
+            return "\(browse.ref.database).\(browse.ref.name)"
+        }
+        return viewModel?.activeTab?.title ?? "results"
+    }
+
+    // MARK: - Explain
+
+    private func prepareExplain(_ viewModel: WorkspaceViewModel) {
+        guard let tab = viewModel.activeTab,
+              let sql = ExplainGate.explainableSQL(for: tab) else { return }
+        Task {
+            guard let driver = await viewModel.connectedDriverForActiveTab() else { return }
+            explainSQL = sql
+            explainDriver = driver
+        }
+    }
+
+    // MARK: - Saved queries
+
+    /// Persists the active tab's editor text as a saved query.
+    private func saveActiveEditorAsQuery() {
+        guard let tab = viewModel?.activeTab else { return }
+        let sql = tab.editorText
+        let name = saveQueryName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !sql.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, !name.isEmpty else { return }
+        modelContext.insert(SavedQuery(name: name, sql: sql))
+        try? modelContext.save()
+        toastCenter.show("Saved “\(name)”")
     }
 
     private func refreshEditorDecision() {
@@ -274,6 +419,11 @@ struct WorkspaceView: View {
         guard viewModel == nil else { return }
         let model = WorkspaceViewModel(drivers: appState.driverProvider)
         model.openQueryTab(connectionId: connectionId)
+        // Batch 7: every finished run lands in the SwiftData history store.
+        model.historyRecorder = HistoryRecorder(context: modelContext)
+        model.connectionNameProvider = { id in
+            appState.config(withID: id)?.name ?? "Unknown"
+        }
         viewModel = model
         let service = RowOperationsService()
         editorViewModel = BrowseEditorViewModel(
@@ -296,7 +446,8 @@ struct WorkspaceView: View {
     }
 
     private func openBrowse(_ viewModel: WorkspaceViewModel, table ref: TableRef) {
-        viewModel.openBrowseTable(ref, connectionId: connectionId)
+        // New browse tabs honor the settings preference for page size.
+        viewModel.openBrowseTable(ref, connectionId: connectionId, pageSize: settings.defaultRowLimit)
         refreshEditorDecision()
         Task {
             await viewModel.loadCurrentPage()

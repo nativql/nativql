@@ -34,6 +34,11 @@ final class SidebarViewModel {
         self.driverProvider = driverProvider
     }
 
+    /// Live driver snapshot for ad-hoc operations (export / DDL sheets).
+    func currentDriver() -> (any DatabaseDriver)? {
+        driverProvider()
+    }
+
     /// Loads the top-level database list.
     func loadDatabases() async {
         guard let driver = driverProvider() else {

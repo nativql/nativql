@@ -11,9 +11,11 @@ final class FakeDriver: DatabaseDriver, @unchecked Sendable {
         columns: [], rows: [], executionMilliseconds: 0, statementType: .other
     ))
     var browseResult: Result<RowPage, Error> = .success(RowPage(columns: [], rows: []))
+    var explainResult: Result<ExplainPlanNode, Error> = .success(ExplainPlanNode(operation: "Seq Scan"))
 
     private(set) var executedSQLs: [String] = []
     private(set) var browseCalls: [(table: TableRef, sort: SortSpec?, limit: Int, offset: Int)] = []
+    private(set) var explainCalls: [(sql: String, analyze: Bool)] = []
 
     func execute(_ sql: String) async throws -> QueryResult {
         executedSQLs.append(sql)
@@ -41,7 +43,10 @@ final class FakeDriver: DatabaseDriver, @unchecked Sendable {
     func listColumns(_ table: TableRef) async throws -> [ColumnInfo] { fatalError("unused") }
     func primaryKey(of table: TableRef) async throws -> [String]? { fatalError("unused") }
     func tableDDL(_ table: TableRef) async throws -> String { fatalError("unused") }
-    func explain(_ sql: String, analyze: Bool) async throws -> ExplainPlanNode { fatalError("unused") }
+    func explain(_ sql: String, analyze: Bool) async throws -> ExplainPlanNode {
+        explainCalls.append((sql, analyze))
+        return try explainResult.get()
+    }
     func createDatabase(named: String) async throws { fatalError("unused") }
     func dropDatabase(named: String) async throws { fatalError("unused") }
     func executeMutation(_ statement: MutationStatement) async throws -> Int64 { fatalError("unused") }

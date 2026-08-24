@@ -2,14 +2,18 @@ import SwiftUI
 import NativQLKit
 
 /// Databases → tables/views disclosure tree for the connected profile.
-/// Tables load lazily on expand; clicking a table selects it for Batch 5.
+/// Tables load lazily on expand; clicking a table selects it. Table context
+/// menu adds whole-table export and a DDL viewer (Batch 7).
 struct DatabaseTreeView: View {
     let viewModel: SidebarViewModel
 
     @Environment(AppState.self) private var appState
+    @Environment(ToastCenter.self) private var toastCenter
     @State private var expandedNames: Set<String> = []
     @State private var pendingDrop: DatabaseNode?
     @State private var dropFailure: String?
+    @State private var exportTableRef: TableRef?
+    @State private var ddlTableRef: TableRef?
 
     var body: some View {
         List {
@@ -32,6 +36,27 @@ struct DatabaseTreeView: View {
             }
         }
         .listStyle(.inset)
+        .sheet(isPresented: Binding(
+            get: { exportTableRef != nil },
+            set: { if !$0 { exportTableRef = nil } }
+        )) {
+            if let ref = exportTableRef, let driver = viewModel.currentDriver() {
+                TableExportSheet(ref: ref, driver: driver) { successMessage in
+                    exportTableRef = nil
+                    if let successMessage {
+                        toastCenter.show(successMessage)
+                    }
+                }
+            }
+        }
+        .sheet(isPresented: Binding(
+            get: { ddlTableRef != nil },
+            set: { if !$0 { ddlTableRef = nil } }
+        )) {
+            if let ref = ddlTableRef, let driver = viewModel.currentDriver() {
+                DDLSheet(ref: ref, driver: driver)
+            }
+        }
         .onChange(of: expandedNames) { _, names in
             Task {
                 for name in names {
@@ -151,6 +176,18 @@ struct DatabaseTreeView: View {
         .contentShape(Rectangle())
         .onTapGesture {
             appState.selectedTable = table.ref
+        }
+        .contextMenu {
+            Button("Browse Table") {
+                appState.selectedTable = table.ref
+            }
+            Divider()
+            Button("Export Table…") {
+                exportTableRef = table.ref
+            }
+            Button("View DDL") {
+                ddlTableRef = table.ref
+            }
         }
     }
 

@@ -14,6 +14,10 @@ struct ResultsFooterView: View {
     /// Browse mode only: enables the "+ Row" append-row affordance.
     var showsInsertRow: Bool = false
     var onInsertRow: () -> Void = {}
+    /// Batch 7: saves the current page (CSV/JSON) via NSSavePanel in the view layer.
+    var canExport: Bool = false
+    var onSaveCSV: () -> Void = {}
+    var onSaveJSON: () -> Void = {}
     var onNextPage: () -> Void
     var onPrevPage: () -> Void
 
@@ -25,6 +29,11 @@ struct ResultsFooterView: View {
             }
             status
             Spacer(minLength: 8)
+            ResultsGridExportMenu(
+                canExport: canExport,
+                onSaveCSV: onSaveCSV,
+                onSaveJSON: onSaveJSON
+            )
             if browse != nil, dirtyCount > 0 {
                 stagedGroup
                 Divider()

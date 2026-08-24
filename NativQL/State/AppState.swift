@@ -24,6 +24,13 @@ final class AppState {
     /// Stub for Batch 5's query workspace; the tree writes, the workspace reads.
     var selectedTable: TableRef?
 
+    /// One-shot text handoff from the history/saved panels into the active
+    /// tab's editor; the workspace consumes it and resets to nil.
+    var pendingEditorLoad: String?
+    /// When true, a pending editor load should also run immediately
+    /// ("Run" on a saved query).
+    var pendingEditorAutorun = false
+
     init(
         store: ConnectionStore? = nil,
         manager: DatabaseConnectionManager? = nil

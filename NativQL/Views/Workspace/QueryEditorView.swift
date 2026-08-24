@@ -3,12 +3,14 @@ import SwiftUI
 
 /// SwiftUI wrapper around a horizontally-scrollable SQL editor
 /// (`NSTextView` + line-number ruler), highlighting on every change.
+/// `fontSize` is live-bound from the settings preference.
 struct QueryEditorView: NSViewRepresentable {
     @Binding var text: String
     /// Applied when the underlying content is replaced externally (tab switch).
     var restoredSelection: NSRange?
     var onSelectionChange: ((Int, Int) -> Void)?
     var onRun: (() -> Void)?
+    var fontSize: Double = 13
 
     func makeCoordinator() -> Coordinator {
         Coordinator(self)
@@ -18,8 +20,7 @@ struct QueryEditorView: NSViewRepresentable {
         let textView = QueryEditorTextView()
         textView.isRichText = false
         textView.allowsUndo = true
-        textView.font = NSFont(name: "Menlo-Regular", size: 13)
-            ?? .monospacedSystemFont(ofSize: 13, weight: .regular)
+        applyFont(to: textView)
         textView.isAutomaticQuoteSubstitutionEnabled = false
         textView.isAutomaticDashSubstitutionEnabled = false
         textView.isAutomaticTextReplacementEnabled = false
@@ -56,6 +57,8 @@ struct QueryEditorView: NSViewRepresentable {
         guard let textView = scrollView.documentView as? QueryEditorTextView else { return }
         textView.onRun = onRun
 
+        applyFontIfNeeded(to: textView, coordinator: context.coordinator)
+
         if textView.string != text {
             let desired = restoredSelection ?? textView.selectedRanges.first?.rangeValue
             textView.string = text
@@ -68,6 +71,22 @@ struct QueryEditorView: NSViewRepresentable {
             }
             Self.synchronizeFrame(textView)
         }
+    }
+
+    // MARK: - Font
+
+    private func applyFont(to textView: NSTextView) {
+        textView.font = NSFont(name: "Menlo-Regular", size: fontSize)
+            ?? .monospacedSystemFont(ofSize: CGFloat(fontSize), weight: .regular)
+        Self.synchronizeFrame(textView)
+    }
+
+    /// Re-applies the font only when the settings value actually changed so
+    /// unrelated SwiftUI updates never relayout the editor.
+    private func applyFontIfNeeded(to textView: NSTextView, coordinator: Coordinator) {
+        guard coordinator.appliedFontSize != fontSize else { return }
+        coordinator.appliedFontSize = fontSize
+        applyFont(to: textView)
     }
 
     // MARK: - Layout
@@ -97,9 +116,11 @@ struct QueryEditorView: NSViewRepresentable {
 
     final class Coordinator: NSObject, NSTextViewDelegate {
         var parent: QueryEditorView
+        var appliedFontSize: Double
 
         init(_ parent: QueryEditorView) {
             self.parent = parent
+            self.appliedFontSize = parent.fontSize
         }
 
         func textDidChange(_ notification: Notification) {

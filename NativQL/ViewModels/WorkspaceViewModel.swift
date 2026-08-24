@@ -32,6 +32,12 @@ final class WorkspaceViewModel {
     /// be discarded before new rows render.
     var onBrowseSnapshotChange: ((UUID) -> Void)?
 
+    /// Set by the workspace view at bootstrap; when present every completed
+    /// run (success OR failure) is recorded into history, fire-and-forget.
+    var historyRecorder: HistoryRecorder?
+    /// Maps a connection id to its display name for history rows.
+    var connectionNameProvider: ((UUID) -> String)?
+
     /// Monotonic "Query N" counters, per connection.
     private var queryCounters: [UUID: Int] = [:]
 
@@ -62,9 +68,10 @@ final class WorkspaceViewModel {
     }
 
     /// Opens (or reuses) the browse tab for a table within one connection,
-    /// titled "database.table".
+    /// titled "database.table". `pageSize` overrides the default page size
+    /// (used to honor the settings preference for new browse tabs).
     @discardableResult
-    func openBrowseTable(_ ref: TableRef, connectionId: UUID) -> QueryTab {
+    func openBrowseTable(_ ref: TableRef, connectionId: UUID, pageSize: Int? = nil) -> QueryTab {
         if let existing = tabs.first(where: { $0.browse?.ref == ref && $0.connectionId == connectionId }) {
             activeTabId = existing.id
             return existing
@@ -72,7 +79,7 @@ final class WorkspaceViewModel {
         let tab = QueryTab(
             title: "\(ref.database).\(ref.name)",
             connectionId: connectionId,
-            browse: BrowseState(ref: ref)
+            browse: BrowseState(ref: ref, pageSize: pageSize ?? 200)
         )
         tabs.append(tab)
         activeTabId = tab.id
@@ -107,6 +114,8 @@ final class WorkspaceViewModel {
 
     /// Runs the selection when non-empty else the whole editor text via the
     /// connection's driver; empty text is a no-op. Disconnected → error result.
+    /// Every completed run (success or failure) is recorded into history when
+    /// a recorder is attached.
     func runActive() async {
         guard let tab = activeTab else { return }
         let text = tab.resolvedRunText
@@ -117,12 +126,29 @@ final class WorkspaceViewModel {
             return
         }
         mutate(tab.id) { $0.result = .loading }
+        let startedAt = Date()
         do {
             let result = try await driver.execute(text)
             gridRevision += 1
             mutate(tab.id) { $0.result = .loaded(result) }
+            recordHistory(text, connectionId: tab.connectionId, ok: true, durationMs: result.executionMilliseconds)
         } catch {
             mutate(tab.id) { $0.result = .error(error.localizedDescription) }
+            recordHistory(
+                text,
+                connectionId: tab.connectionId,
+                ok: false,
+                durationMs: Date().timeIntervalSince(startedAt) * 1000
+            )
+        }
+    }
+
+    /// Fire-and-forget persistence of one finished run; no-op without a recorder.
+    private func recordHistory(_ sql: String, connectionId: UUID, ok: Bool, durationMs: Double) {
+        guard let historyRecorder else { return }
+        let name = connectionNameProvider?(connectionId) ?? "Unknown"
+        Task { [historyRecorder] in
+            historyRecorder.record(sql: sql, connectionName: name, kind: .query, ok: ok, durationMs: durationMs)
         }
     }
 

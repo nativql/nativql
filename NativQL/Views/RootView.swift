@@ -13,6 +13,9 @@ struct RootView: View {
         } detail: {
             detail
         }
+        .background {
+            ShortcutsHelpOpener()
+        }
     }
 
     @ViewBuilder
@@ -27,19 +30,51 @@ struct RootView: View {
     }
 }
 
-/// Header + database tree + Batch 5 query workspace for a connected profile.
+/// Bridges the Help-menu notification (⌘/) into an openWindow call; lives
+/// inside window content so it has access to the openWindow environment.
+private struct ShortcutsHelpOpener: View {
+    @Environment(\.openWindow) private var openWindow
+
+    var body: some View {
+        Color.clear
+            .frame(width: 0, height: 0)
+            .onReceive(NotificationCenter.default.publisher(for: .openShortcutsHelp)) { _ in
+                openWindow(id: "shortcuts-help")
+            }
+    }
+}
+
+/// Which panel fills the tree column above the workspace.
+enum SidebarSection: String, CaseIterable, Identifiable {
+    case tables, history, saved
+
+    var title: String {
+        switch self {
+        case .tables: return "Tables"
+        case .history: return "History"
+        case .saved: return "Saved"
+        }
+    }
+
+    var id: Self { self }
+}
+
+/// Header + section-switchable tree column + Batch 5 query workspace for a
+/// connected profile.
 struct ConnectionDetailView: View {
     let connection: ConnectionConfig
 
     @Environment(AppState.self) private var appState
     @State private var treeViewModel: SidebarViewModel?
+    @State private var section: SidebarSection = .tables
 
     var body: some View {
         VStack(spacing: 0) {
             header
             Divider()
             HStack(spacing: 0) {
-                tree
+                treeColumn
+                    .frame(width: 240)
                 Divider()
                 WorkspaceView(connectionId: connection.id)
                     // Recreates the workspace (and its @State view model) when
@@ -63,15 +98,31 @@ struct ConnectionDetailView: View {
         }
     }
 
-    @ViewBuilder
-    private var tree: some View {
-        if let treeViewModel {
-            DatabaseTreeView(viewModel: treeViewModel)
-                .frame(width: 240)
-        } else {
-            ProgressView()
-                .frame(width: 240)
-                .frame(maxHeight: .infinity)
+    private var treeColumn: some View {
+        VStack(spacing: 0) {
+            Picker("Section", selection: $section) {
+                ForEach(SidebarSection.allCases) { mode in
+                    Text(mode.title).tag(mode)
+                }
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .padding(8)
+            Divider()
+
+            switch section {
+            case .tables:
+                if let treeViewModel {
+                    DatabaseTreeView(viewModel: treeViewModel)
+                } else {
+                    ProgressView()
+                        .frame(maxHeight: .infinity)
+                }
+            case .history:
+                HistoryPanel()
+            case .saved:
+                SavedQueriesPanel()
+            }
         }
     }
 

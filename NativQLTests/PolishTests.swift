@@ -374,4 +374,123 @@ final class PolishTests: XCTestCase {
         XCTAssertEqual(reloaded.editorFontSize, 15, "reads back persisted values")
         XCTAssertEqual(reloaded.defaultRowLimit, 250)
     }
+
+    // MARK: - Run pipeline history recording
+
+    func testRunActiveRecordsSuccessIntoHistoryWithConnectionName() async throws {
+        let connectionId = UUID()
+        let provider = FakeDriverProvider()
+        provider.install(FakeDriver(), for: connectionId)
+        let container = try NativQLModelContainer.inMemory()
+        let context = ModelContext(container)
+        let recorder = HistoryRecorder(context: context)
+
+        let vm = WorkspaceViewModel(drivers: provider)
+        vm.historyRecorder = recorder
+        vm.connectionNameProvider = { $0 == connectionId ? "prod-db" : "?" }
+        let tab = vm.openQueryTab(connectionId: connectionId)
+        vm.setEditorText("SELECT 1;", for: tab.id)
+
+        await vm.runActive()
+        // Fire-and-forget recording still runs on the main actor; yield once.
+        await Task.yield()
+
+        let entries = try context.fetch(FetchDescriptor<QueryHistoryEntry>())
+        XCTAssertEqual(entries.count, 1)
+        XCTAssertEqual(entries.first?.sql, "SELECT 1;")
+        XCTAssertEqual(entries.first?.connectionName, "prod-db")
+        XCTAssertEqual(entries.first?.ok, true)
+        XCTAssertEqual(entries.first?.kind, "query")
+    }
+
+    func testRunActiveRecordsFailureIntoHistory() async throws {
+        let connectionId = UUID()
+        let provider = FakeDriverProvider()
+        let driver = FakeDriver()
+        driver.executeResult = .failure(FakeQueryError.queryFailed("boom"))
+        provider.install(driver, for: connectionId)
+        let container = try NativQLModelContainer.inMemory()
+        let context = ModelContext(container)
+        let recorder = HistoryRecorder(context: context)
+
+        let vm = WorkspaceViewModel(drivers: provider)
+        vm.historyRecorder = recorder
+        vm.connectionNameProvider = { _ in "prod-db" }
+        let tab = vm.openQueryTab(connectionId: connectionId)
+        vm.setEditorText("SELECT broken;", for: tab.id)
+
+        await vm.runActive()
+        await Task.yield()
+
+        let entries = try context.fetch(FetchDescriptor<QueryHistoryEntry>())
+        XCTAssertEqual(entries.count, 1)
+        XCTAssertEqual(entries.first?.ok, false)
+        XCTAssertEqual(entries.first?.sql, "SELECT broken;")
+    }
+
+    func testRunActiveWithoutRecorderSkipsHistory() async throws {
+        let connectionId = UUID()
+        let provider = FakeDriverProvider()
+        provider.install(FakeDriver(), for: connectionId)
+        let vm = WorkspaceViewModel(drivers: provider)
+        let tab = vm.openQueryTab(connectionId: connectionId)
+        vm.setEditorText("SELECT 1;", for: tab.id)
+
+        await vm.runActive()
+
+        guard case .loaded = vm.activeTab?.result else {
+            return XCTFail("expected loaded result")
+        }
+    }
+
+    // MARK: - Browse page-size preference
+
+    func testOpenBrowseTableHonorsProvidedPageSizeAndKeepsDefault() {
+        let connectionId = UUID()
+        let provider = FakeDriverProvider()
+        let vm = WorkspaceViewModel(drivers: provider)
+        let ref = TableRef(database: "shop", name: "users")
+
+        let custom = vm.openBrowseTable(ref, connectionId: connectionId, pageSize: 350)
+        XCTAssertEqual(custom.browse?.pageSize, 350)
+
+        let fallbackRef = TableRef(database: "shop", name: "orders")
+        let fallback = vm.openBrowseTable(fallbackRef, connectionId: connectionId)
+        XCTAssertEqual(fallback.browse?.pageSize, 200, "no explicit pageSize keeps the 200 default")
+    }
+
+    // MARK: - Explain view model
+
+    func testExplainViewModelRunsDriverAndSurfacesPlan() async throws {
+        let driver = FakeDriver()
+        driver.explainResult = .success(ExplainPlanNode(
+            operation: "Nested Loop",
+            detail: "join",
+            actualRows: 12,
+            actualTimeMilliseconds: 0.42,
+            children: [ExplainPlanNode(operation: "Seq Scan", actualRows: 100)]
+        ))
+        let viewModel = ExplainViewModel()
+
+        await viewModel.run(sql: "SELECT 1;", driver: driver, analyze: true)
+
+        XCTAssertEqual(driver.explainCalls.count, 1)
+        XCTAssertEqual(driver.explainCalls.first?.analyze, true)
+        XCTAssertNil(viewModel.errorText)
+        XCTAssertEqual(viewModel.plan?.operation, "Nested Loop")
+        XCTAssertEqual(viewModel.plan?.actualRows, 12)
+        XCTAssertEqual(viewModel.plan?.children.first?.operation, "Seq Scan")
+        XCTAssertFalse(viewModel.isLoading)
+    }
+
+    func testExplainViewModelSurfacesDriverError() async throws {
+        let driver = FakeDriver()
+        driver.explainResult = .failure(FakeQueryError.queryFailed("cannot explain"))
+        let viewModel = ExplainViewModel()
+
+        await viewModel.run(sql: "SELECT 2;", driver: driver, analyze: false)
+
+        XCTAssertNil(viewModel.plan)
+        XCTAssertTrue(viewModel.errorText?.contains("cannot explain") ?? false)
+    }
 }
