@@ -119,13 +119,20 @@ extension IntegrationTests {
             f_bool TINYINT(1),
             f_dt DATETIME,
             f_json JSON,
-            f_blob BLOB
+            f_blob BLOB,
+            f_time TIME,
+            f_ntime TIME,
+            f_longtime TIME,
+            f_year YEAR,
+            f_bit BIT(16)
         );
         """)
 
         _ = try await driver.execute("""
-        INSERT INTO t_types (f_biguint, f_dec, f_text, f_bool, f_dt, f_json, f_blob)
-        VALUES (1844674407370955161, 1234.57, 'héllo', 1, '2026-08-23 12:34:56', '{"k": [1, 2]}', _binary'DEADBEEF');
+        INSERT INTO t_types (f_biguint, f_dec, f_text, f_bool, f_dt, f_json, f_blob,
+                             f_time, f_ntime, f_longtime, f_year, f_bit)
+        VALUES (1844674407370955161, 1234.57, 'héllo', 1, '2026-08-23 12:34:56', '{"k": [1, 2]}', _binary'DEADBEEF',
+                '13:45:30', '-01:30:05', '25:01:01', 2026, 258);
         """)
         let result = try await driver.execute("SELECT * FROM t_types ORDER BY id;")
 
@@ -154,6 +161,12 @@ extension IntegrationTests {
         } else {
             XCTFail("expected bytes, got \(row[7])")
         }
+        // TIME sign/days coverage (binary wire layout parsed directly)
+        XCTAssertEqual(row[8], .time(49_530))       // 13:45:30
+        XCTAssertEqual(row[9], .time(-5_405))       // -01:30:05
+        XCTAssertEqual(row[10], .time(90_061))      // 25:01:01 (>24h via days)
+        XCTAssertEqual(row[11], .int(2_026))        // YEAR
+        XCTAssertEqual(row[12], .int(258))          // BIT(16) big-endian 0x0102
 
         // NULL round trip on second row
         _ = try await driver.execute(

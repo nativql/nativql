@@ -258,7 +258,7 @@ public final class MySQLDriver: DatabaseDriver, @unchecked Sendable {
                 }
             }
         } catch {
-            throw try Self.mapExecutionError(error)
+            throw Self.mapExecutionError(error)
         }
 
         let elapsed = clock.now - start
@@ -322,17 +322,21 @@ public final class MySQLDriver: DatabaseDriver, @unchecked Sendable {
         }
     }
 
-    /// Maps execution-phase errors into the Kit taxonomy. Structured server
-    /// codes win over text sniffing:
-    /// - 1317 `ER_QUERY_INTERRUPTED` → `.cancelled` (KILL QUERY / pg-style cancel)
-    /// - 1064 `ER_PARSE_ERROR` and everything else server-side → `.queryFailed`
+    /// Maps execution-phase errors into the Kit taxonomy. Structured cases
+    /// win over text sniffing:
+    /// - `MySQLError.invalidSyntax` (1064 arrives outside the `.server` case)
+    ///   → `.queryFailed` with the server's message
+    /// - server 1317 `ER_QUERY_INTERRUPTED` → `.cancelled` (KILL QUERY)
     /// - `CancellationError` (Swift task cancellation) → `.cancelled`
-    static func mapExecutionError(_ error: Error) throws -> DriverError {
+    static func mapExecutionError(_ error: Error) -> DriverError {
         if let driverError = error as? DriverError {
             return driverError
         }
         if error is CancellationError {
             return .cancelled
+        }
+        if case MySQLError.invalidSyntax(let message) = error {
+            return .queryFailed(message)
         }
         if case MySQLError.server(let packet) = error {
             if packet.errorCode == .QUERY_INTERRUPTED {

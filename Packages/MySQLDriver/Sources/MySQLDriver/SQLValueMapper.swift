@@ -86,20 +86,20 @@ enum SQLValueMapper {
             return mapInteger(data)
         }
         if t == .year {
-            return .int(Int64(data.int ?? 0))
+            // Fixed 2-byte LE payload (length prefix consumed by row parser).
+            var buffer = data.buffer!
+            return .int(Int64(buffer.readInteger(endianness: .little, as: UInt16.self) ?? 0))
         }
         if t == .bit {
-            // BIT(N) arrives as binary bit-field bytes; render as unsigned int
-            // when it fits, else raw hex string.
+            // MySQL stores bit-fields big-endian; width is 1–8 bytes.
             var buffer = data.buffer!
             let n = buffer.readableBytes
-            if n == 8, let u: UInt64 = buffer.readInteger(endianness: .little) {
-                return Int64(exactly: u).map(SQLValue.int) ?? .string("0x" + String(u, radix: 16))
+            let raw = buffer.readBytes(length: n) ?? []
+            var value: UInt64 = 0
+            for byte in raw {
+                value = (value << 8) | UInt64(byte)
             }
-            if n <= 4, let u: UInt32 = buffer.readInteger(endianness: .little) {
-                return .int(Int64(u))
-            }
-            return .string(buffer.readString(length: n) ?? "")
+            return Int64(exactly: value).map(SQLValue.int) ?? .string("0x" + String(value, radix: 16))
         }
         if t == .date || t == .newdate {
             guard let date = data.date else { return .null }
@@ -156,16 +156,25 @@ enum SQLValueMapper {
         return .string(data.string ?? "")
     }
 
-    /// MySQL TIME spans −838:59:59 … 838:59:59, so hours may exceed 24.
-    /// Kit represents it as signed total seconds. Negative values only surface
-    /// through the text-protocol fallback below (the wire struct carries no
-    /// sign flag).
+    /// MySQL TIME spans −838:59:59 … 838:59:59 (hours may exceed 24, days
+    /// carry the magnitude). Binary wire layout after the row parser strips
+    /// the length prefix: `[neg:u8][days:u32 LE][h][m][s]([us:u32 LE])` —
+    /// 8 or 12 bytes. MySQLNIO's own `readMySQLTime()` discards sign+days,
+    /// so we parse the buffer directly. Kit represents TIME as signed total
+    /// seconds; microseconds are truncated in v1.
     private static func mapTime(_ data: MySQLData) -> SQLValue {
-        if let time = data.time {
-            let seconds = Int64(time.hour ?? 0) * 3600
-                + Int64(time.minute ?? 0) * 60
-                + Int64(time.second ?? 0)
-            return .time(TimeInterval(seconds))
+        if data.format == .binary, var buffer = data.buffer {
+            let size = buffer.readableBytes
+            if size == 8 || size == 12 {
+                let neg = buffer.readInteger(endianness: .little, as: UInt8.self) ?? 0
+                let days = Int64(buffer.readInteger(endianness: .little, as: UInt32.self) ?? 0)
+                let h = Int64(buffer.readInteger(endianness: .little, as: UInt8.self) ?? 0)
+                let m = Int64(buffer.readInteger(endianness: .little, as: UInt8.self) ?? 0)
+                let s = Int64(buffer.readInteger(endianness: .little, as: UInt8.self) ?? 0)
+                var total = days * 86_400 + h * 3_600 + m * 60 + s
+                if neg == 1 { total = -total }
+                return .time(TimeInterval(total))
+            }
         }
         // Text-protocol fallback: "-HHH:MM:SS"
         guard let raw = data.string else { return .null }
