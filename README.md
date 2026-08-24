@@ -3,83 +3,83 @@
 A native macOS SQL client for **PostgreSQL** and **MySQL**. Fast, focused, and
 fully local — connection details, queries, and results never leave your machine.
 
-> 🚧 NativQL is in early development. Batches 2–7 (database drivers, query
-> workspace, inline editing, polish) are being built on the foundation below.
+Built with SwiftUI + SwiftNIO drivers (no Electron, no C dependencies). Open
+source under MIT.
 
-## Features (v1 target)
+## Features
 
 **Connections**
-- Profiles with host/port/user/password/database, engine-appropriate SSL modes
-  (`disable/prefer/require/verify-full` for PostgreSQL;
-  `disabled/preferred/required/verify-ca/verify-identity` for MySQL)
+- Profiles with host/port/user/password/database and per-engine SSL modes
 - Paste a `postgres://` or `mysql://` connection string to fill the form
-- Test-connection button, color labels
+- Test-connection button, color labels, connect/disconnect from the sidebar
 
 **Browsing**
 - Sidebar: connections → databases → tables/views
-- Schema grouping for PostgreSQL; flat database list for MySQL
-- Table structure view (columns, types, nullability, primary keys)
-- DDL viewer (`SHOW CREATE TABLE` / catalog reconstruction)
+- Schema-aware for PostgreSQL; flat database list for MySQL
+- Lazy-loaded tree, refresh, drop database (with confirmation)
 
 **Query workspace**
-- Multi-tab interface; tab state restored across launches
-- Syntax-highlighted SQL editor with line numbers
-- Run selection or everything (⌘R / ⌘↩), sequential multi-statement execution
-- Query history (auto-recorded, searchable) and saved queries in nested folders
+- Multi-tab interface — one click opens tabs per connection or per table
+- Syntax-highlighted SQL editor (keywords/strings/comments/numbers) with line
+  numbers and live font-size setting
+- Run selection or everything (⌘R / ⌘↩); multi-statement scripts execute
+  sequentially with the last result shown
+- Query history auto-recorded (searchable, capped at 500) — double-click to
+  reload into the editor
+- Saved queries with folders: run, rename, move, delete
 
-**Results**
-- Virtualized grid that stays fast on large result sets
-- Column-sort re-query server-side, pagination controls
-- NULL styling distinct from empty strings
-- Cell popover viewer for long text and JSON documents
-- Copy cell/row/selection as CSV, JSON, or INSERT statements
-- Export to CSV/JSON from grid or whole table
+**Results grid**
+- Virtualized NSTableView-backed grid stays fast on large pages
+- NULL styled italic gray, distinct from empty strings; numbers right-aligned
+- Copy rows as TSV; export current page as CSV/JSON; copy as CSV/JSON/INSERT
+- Whole-table export to CSV/JSON with row limits and cancel support
 
 **Inline editing**
-- Edit cells directly in the grid (TablePlus-style)
-- Staged changes with dirty markers; ⌘S commits inside a transaction
-- Primary-key-based UPDATE/INSERT/DELETE generation — no PK means read-only,
-  with a clear explanation why
-- Add and delete rows
+- Double-click any cell in table browse mode to edit
+- Staged changes show amber badges; ⌘S commits inside one transaction per group
+- Primary-key-based UPDATE/INSERT/DELETE generation — tables without a primary
+  key are read-only with a clear explanation why
+- Add row (+ Row) and delete rows via context menu; Set NULL distinct from ""
+- Zero-affected-row commits abort with a "row changed" warning instead of
+  silently succeeding
 
-**Query plans**
-- EXPLAIN tree view: PostgreSQL `EXPLAIN (ANALYZE, FORMAT JSON)`,
-  MySQL `EXPLAIN ANALYZE`
+**Query plans & DDL**
+- EXPLAIN tree view: PostgreSQL `EXPLAIN (ANALYZE, FORMAT JSON)` and MySQL
+  `EXPLAIN ANALYZE` — recursive plan tree with actual rows/timing (⌘E)
+- View DDL for any table (`SHOW CREATE TABLE` / catalog reconstruction)
 
-**Admin**
-- Create/drop databases
-- Welcome screen with recent connections
-- Settings: font size, default row limit, query timeout
-- Keyboard shortcuts help, mutation toasts
+**Polish**
+- Toast notifications for commits and exports
+- Settings: editor font size (live), default browse page size
+- Keyboard-shortcuts help window (⌘/)
 
 ## Architecture
 
-Four layers with strict downward dependencies:
+```
+Views (SwiftUI + AppKit bridges) → @Observable ViewModels → Services
+    → DatabaseDriver protocol
+           ↑                        ↑
+   PostgresDriver            MySQLDriver
+   (PostgresNIO)             (MySQLNIO)
+```
+
+Both drivers map wire types into one `SQLValue` enum, so everything above the
+driver layer is database-agnostic. The star package graph keeps third-party
+dependencies isolated:
 
 ```
-Views (SwiftUI) → ViewModels (@Observable) → Services → DatabaseDriver protocol
-                                                             ↑            ↑
-                                                    PostgresDriver   MySQLDriver
-                                                      (PostgresNIO)   (MySQLNIO)
-```
-
-Both drivers map wire types into one `SQLValue` enum, so every view, exporter,
-and editor above the driver layer is database-agnostic. Adding SQLite later is
-additive: one new package implementing the protocol.
-
-```
-NativQL.xcodeproj          # thin app shell (generated by XcodeGen, committed)
+NativQL.xcodeproj          # thin app shell (XcodeGen-generated, committed)
 ├── NativQL/               # app target: Services, Persistence, ViewModels, Views
 ├── Packages/
 │   ├── NativQLKit/        # pure logic: models, driver protocol, SQL utilities
-│   ├── PostgresDriver/    # DatabaseDriver over PostgresNIO (Batch 2)
-│   └── MySQLDriver/       # DatabaseDriver over MySQLNIO (Batch 3)
+│   ├── PostgresDriver/    # DatabaseDriver over PostgresNIO (~1.33)
+│   └── MySQLDriver/       # DatabaseDriver over MySQLNIO (~1.9)
 └── docker-compose.yml     # postgres:16 + mysql:8 for integration tests
 ```
 
 ## Quick start
 
-Requirements: macOS 14+, Xcode 15.3+ (or any Xcode with Swift 5.10),
+Requirements: macOS 14+, Xcode 15.3+ (or newer, incl. Xcode 26),
 [XcodeGen](https://github.com/yonaskolb/XcodeGen) (`brew install xcodegen`).
 
 **Build and launch with one command:**
@@ -88,52 +88,70 @@ Requirements: macOS 14+, Xcode 15.3+ (or any Xcode with Swift 5.10),
 make run
 ```
 
-That generates the Xcode project if needed, builds Debug into `.derived/`, and
-opens the app. Other targets:
+Generates the Xcode project if needed, builds Debug into `.derived/`, opens the
+app. Also available:
 
 ```bash
 make build    # compile without launching
-make test     # run the NativQLKit unit test suite
+make test     # NativQLKit unit test suite
 make clean    # remove build artifacts
 ```
 
 **Prefer Xcode?**
 
-1. Clone and open:
-   ```bash
-   git clone https://github.com/nativql/nativql.git && cd nativql && open NativQL.xcodeproj
-   ```
-2. Select the **NativQL** target → Signing & Capabilities → choose your team
-   (a free "Personal Team" works)
-3. Build and run with ⌘R
+```bash
+git clone https://github.com/nativql/nativql.git && cd nativql && open NativQL.xcodeproj
+```
 
-**Running tests from the CLI:**
+Then: select the **NativQL** target → Signing & Capabilities → pick your team
+(a free "Personal Team" works) → ⌘R.
+
+**Testing**
 
 ```bash
-make test                                            # fast unit tests, no Xcode needed
-docker compose up -d                                 # for integration tests (Batch 2+)
-NATIVQL_INTEGRATION=1 swift test                     # inside Packages/PostgresDriver etc.
+make test                                  # fast unit tests (153 tests)
+docker compose up -d                       # start postgres:16 + mysql:8
+TEST_RUNNER_NATIVQL_INTEGRATION=1 \
+  xcodebuild -project NativQL.xcodeproj -scheme NativQL test CODE_SIGNING_ALLOWED=NO
+                                           # full suite incl. live round-trips
+# driver packages also test standalone:
+(cd Packages/PostgresDriver && NATIVQL_INTEGRATION=1 swift test)
+(cd Packages/MySQLDriver    && NATIVQL_INTEGRATION=1 swift test)
 ```
+
+Note: the MySQL container's `nativql` user needs `CREATE/DROP` grants outside
+its own database for admin round-trip tests — see docker-compose comments.
 
 ## Security notes
 
 v1 stores connection passwords in plaintext JSON under
-`~/Library/Application Support/NativQL/` with `600` file permissions. This is a
-known tradeoff; Keychain integration is planned. Do not use v1 on shared
+`~/Library/Application Support/NativQL/connections.json` (chmod 600). This is a
+known tradeoff; Keychain integration is planned. Query history stores SQL text,
+so credentials pasted into queries would persist there too. Avoid v1 on shared
 machines if this matters to you.
+
+## Known limitations (v1)
+
+- No SSH tunneling yet (planned v1.x)
+- Passwords not stored in Keychain yet (planned v1.x)
+- No smart autocomplete (planned v1.x)
+- MySQL: zero-row SELECTs return no column headers (library limitation);
+  TIME values beyond ±24h supported but microseconds truncated
+- Multi-statement commits run as separate transactions per statement group
+- Query timeout preference is stored but not yet enforced by drivers
 
 ## Roadmap
 
-| Batch | Scope | Status |
-|---|---|---|
-| 1 | Foundation: packages, models, driver protocol, SQL utilities, app shell | ✅ done |
-| 2 | PostgreSQL driver (connect, introspect, browse, edit, EXPLAIN) | building |
-| 3 | MySQL driver | pending |
-| 4 | Connections UI + sidebar + welcome screen | pending |
-| 5 | Tabs, editor, results grid | pending |
-| 6 | Inline editing + row operations | pending |
-| 7 | History, saved queries, export, DDL, plans, settings | pending |
-| v1.x | SSH tunnels, Keychain storage, autocomplete, data import, ER diagrams | later |
+| Milestone | Status |
+|---|---|
+| Foundation: packages, models, driver protocol, SQL utilities | ✅ |
+| PostgreSQL driver (22 integration tests) | ✅ |
+| MySQL driver (21 integration tests) | ✅ |
+| Connections UI, sidebar, welcome screen | ✅ |
+| Tabs, editor, virtualized results grid | ✅ |
+| Inline editing with staged transactional commits | ✅ |
+| History, saved queries, export, DDL, EXPLAIN, settings | ✅ |
+| v1.x: SSH tunnels · Keychain · autocomplete · import · ER diagrams | planned |
 
 ## License
 
