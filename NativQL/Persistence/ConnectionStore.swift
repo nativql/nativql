@@ -27,6 +27,14 @@ final class ConnectionStore {
 
     private(set) var connections: [ConnectionConfig]
 
+    /// App-facing factory: ensures the Application Support directory exists and
+    /// returns a store rooted there.
+    static func `default`() -> ConnectionStore {
+        let directory = defaultDirectory()
+        try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        return ConnectionStore(directory: directory)
+    }
+
     /// - Parameter directory: Storage directory; defaults to the app's
     ///   `~/Library/Application Support/NativQL`.
     init(directory: URL? = nil) {

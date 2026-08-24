@@ -7,14 +7,23 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		147B795560F459FB749F45C4 /* DatabaseTreeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B15180F2B533636F40BACAC3 /* DatabaseTreeView.swift */; };
+		18399C5C842009739F18A6E3 /* SidebarViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61A227E287BD2B816ED8C926 /* SidebarViewModel.swift */; };
 		20001A09C1A4DEFA7344F1EB /* MySQLDriver in Frameworks */ = {isa = PBXBuildFile; productRef = 4904FE4D6986583CB52C78B0 /* MySQLDriver */; };
+		42D407F0740772125865F400 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6BB27DCF81CA87EFEFF5ECE /* RootView.swift */; };
 		4DDD8F20FACA21FE5D2FDE9E /* PostgresDriver in Frameworks */ = {isa = PBXBuildFile; productRef = 54816D600B3AECA69AA056D9 /* PostgresDriver */; };
 		5CC225895A1AA0BCBEF49C5A /* NativQLKit in Frameworks */ = {isa = PBXBuildFile; productRef = F6338A038D70441EDADB3A16 /* NativQLKit */; };
+		865E620E2152D3ABD4FFC4C0 /* ConnectionFormView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E759089C41F7910F464495F /* ConnectionFormView.swift */; };
 		95BF5ACA2A8ED0244DE56170 /* DatabaseConnectionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0EF2FC3677C42D91FE3DFC8E /* DatabaseConnectionManager.swift */; };
 		96AE2A53D7CDDB1E69F1ADD4 /* AppShellTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC469FC25BEA4D43EBFDB476 /* AppShellTests.swift */; };
 		AD7AF14BB37E9155F1E6BA92 /* SmokeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE9F97BDAC3A1CE10014A63A /* SmokeTests.swift */; };
+		B110BF67FD0DD44D789DCDE1 /* ColorLabelPalette.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04AC0E0A4BD09ADB6BE54599 /* ColorLabelPalette.swift */; };
 		B45CDB21D55EF62D5ACE4D23 /* ConnectionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B564F1C47409C54626ECE76 /* ConnectionStore.swift */; };
+		BDB6932E6879D19E604C25B1 /* Loadable.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38D3B7707522F5ADB590FE1C /* Loadable.swift */; };
 		BF8D572B1FE2BBC289BE7C0D /* NativQLApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = E08BB443FDF7763932642B19 /* NativQLApp.swift */; };
+		C41E7831BD06D8802D68DECF /* WelcomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43B2A0FC48CC0430083DE5DC /* WelcomeView.swift */; };
+		D804DDE300842A3E4DBCAD04 /* SidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2176EADC44D442157B2D33B8 /* SidebarView.swift */; };
+		FD8BEF73F7DD813765AE1046 /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7250C946F2454C4F75D1FBF0 /* AppState.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -28,15 +37,24 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		04AC0E0A4BD09ADB6BE54599 /* ColorLabelPalette.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ColorLabelPalette.swift; sourceTree = "<group>"; };
+		0E759089C41F7910F464495F /* ConnectionFormView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectionFormView.swift; sourceTree = "<group>"; };
 		0EF2FC3677C42D91FE3DFC8E /* DatabaseConnectionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatabaseConnectionManager.swift; sourceTree = "<group>"; };
 		181179E416692E2C616FCDD5 /* NativQLTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = NativQLTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		2176EADC44D442157B2D33B8 /* SidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarView.swift; sourceTree = "<group>"; };
 		264E9286DE39E1043FCC1B38 /* NativQLKit */ = {isa = PBXFileReference; lastKnownFileType = folder; name = NativQLKit; path = Packages/NativQLKit; sourceTree = SOURCE_ROOT; };
 		28117378309ECF9BC8605BAD /* NativQL.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = NativQL.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		38D3B7707522F5ADB590FE1C /* Loadable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Loadable.swift; sourceTree = "<group>"; };
+		43B2A0FC48CC0430083DE5DC /* WelcomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WelcomeView.swift; sourceTree = "<group>"; };
+		61A227E287BD2B816ED8C926 /* SidebarViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarViewModel.swift; sourceTree = "<group>"; };
 		6E26847049E070F5C89CFB21 /* MySQLDriver */ = {isa = PBXFileReference; lastKnownFileType = folder; name = MySQLDriver; path = Packages/MySQLDriver; sourceTree = SOURCE_ROOT; };
+		7250C946F2454C4F75D1FBF0 /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
 		8B564F1C47409C54626ECE76 /* ConnectionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectionStore.swift; sourceTree = "<group>"; };
 		A63B4A3A6F37FCA3D46B4B38 /* PostgresDriver */ = {isa = PBXFileReference; lastKnownFileType = folder; name = PostgresDriver; path = Packages/PostgresDriver; sourceTree = SOURCE_ROOT; };
 		AC469FC25BEA4D43EBFDB476 /* AppShellTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppShellTests.swift; sourceTree = "<group>"; };
+		B15180F2B533636F40BACAC3 /* DatabaseTreeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatabaseTreeView.swift; sourceTree = "<group>"; };
 		E08BB443FDF7763932642B19 /* NativQLApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativQLApp.swift; sourceTree = "<group>"; };
+		E6BB27DCF81CA87EFEFF5ECE /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
 		EE9F97BDAC3A1CE10014A63A /* SmokeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SmokeTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -72,6 +90,15 @@
 			);
 			sourceTree = "<group>";
 		};
+		1AC09947DC472956D1E188D7 /* Sidebar */ = {
+			isa = PBXGroup;
+			children = (
+				B15180F2B533636F40BACAC3 /* DatabaseTreeView.swift */,
+				2176EADC44D442157B2D33B8 /* SidebarView.swift */,
+			);
+			path = Sidebar;
+			sourceTree = "<group>";
+		};
 		1EF144206F146AFCB8B99330 /* Products */ = {
 			isa = PBXGroup;
 			children = (
@@ -79,6 +106,22 @@
 				181179E416692E2C616FCDD5 /* NativQLTests.xctest */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		2E0AAB4403D7512B7A03F87A /* ConnectionForm */ = {
+			isa = PBXGroup;
+			children = (
+				0E759089C41F7910F464495F /* ConnectionFormView.swift */,
+			);
+			path = ConnectionForm;
+			sourceTree = "<group>";
+		};
+		350F49929C700BDD31958368 /* ViewModels */ = {
+			isa = PBXGroup;
+			children = (
+				61A227E287BD2B816ED8C926 /* SidebarViewModel.swift */,
+			);
+			path = ViewModels;
 			sourceTree = "<group>";
 		};
 		420BBDF17F5FEB3180C8F4AB /* Services */ = {
@@ -99,14 +142,45 @@
 			path = Packages;
 			sourceTree = "<group>";
 		};
+		74337253C805DF536A8C5361 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				E6BB27DCF81CA87EFEFF5ECE /* RootView.swift */,
+				2E0AAB4403D7512B7A03F87A /* ConnectionForm */,
+				1AC09947DC472956D1E188D7 /* Sidebar */,
+				D095DBEAE247611935E0B655 /* Support */,
+				80F59C1A4B3950CD18C500E9 /* Welcome */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		80F59C1A4B3950CD18C500E9 /* Welcome */ = {
+			isa = PBXGroup;
+			children = (
+				43B2A0FC48CC0430083DE5DC /* WelcomeView.swift */,
+			);
+			path = Welcome;
+			sourceTree = "<group>";
+		};
 		AC02FA201B80CAC69DDBBE86 /* NativQL */ = {
 			isa = PBXGroup;
 			children = (
 				E08BB443FDF7763932642B19 /* NativQLApp.swift */,
 				0AB49F7E453E1E7585F4C9EC /* Persistence */,
 				420BBDF17F5FEB3180C8F4AB /* Services */,
+				FA31921E83CC3872D5A63179 /* State */,
+				350F49929C700BDD31958368 /* ViewModels */,
+				74337253C805DF536A8C5361 /* Views */,
 			);
 			path = NativQL;
+			sourceTree = "<group>";
+		};
+		D095DBEAE247611935E0B655 /* Support */ = {
+			isa = PBXGroup;
+			children = (
+				04AC0E0A4BD09ADB6BE54599 /* ColorLabelPalette.swift */,
+			);
+			path = Support;
 			sourceTree = "<group>";
 		};
 		D88B503CD5DC183F324C9FF2 /* NativQLTests */ = {
@@ -116,6 +190,15 @@
 				EE9F97BDAC3A1CE10014A63A /* SmokeTests.swift */,
 			);
 			path = NativQLTests;
+			sourceTree = "<group>";
+		};
+		FA31921E83CC3872D5A63179 /* State */ = {
+			isa = PBXGroup;
+			children = (
+				7250C946F2454C4F75D1FBF0 /* AppState.swift */,
+				38D3B7707522F5ADB590FE1C /* Loadable.swift */,
+			);
+			path = State;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -213,9 +296,18 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				FD8BEF73F7DD813765AE1046 /* AppState.swift in Sources */,
+				B110BF67FD0DD44D789DCDE1 /* ColorLabelPalette.swift in Sources */,
+				865E620E2152D3ABD4FFC4C0 /* ConnectionFormView.swift in Sources */,
 				B45CDB21D55EF62D5ACE4D23 /* ConnectionStore.swift in Sources */,
 				95BF5ACA2A8ED0244DE56170 /* DatabaseConnectionManager.swift in Sources */,
+				147B795560F459FB749F45C4 /* DatabaseTreeView.swift in Sources */,
+				BDB6932E6879D19E604C25B1 /* Loadable.swift in Sources */,
 				BF8D572B1FE2BBC289BE7C0D /* NativQLApp.swift in Sources */,
+				42D407F0740772125865F400 /* RootView.swift in Sources */,
+				D804DDE300842A3E4DBCAD04 /* SidebarView.swift in Sources */,
+				18399C5C842009739F18A6E3 /* SidebarViewModel.swift in Sources */,
+				C41E7831BD06D8802D68DECF /* WelcomeView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
