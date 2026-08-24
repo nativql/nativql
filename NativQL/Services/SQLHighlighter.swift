@@ -27,7 +27,10 @@ enum SQLHighlighter {
     ]
 
     private static let commentRegex = makeRegex("--[^\\n]*|/\\*[\\s\\S]*?(?:\\*/|$)")
-    private static let stringRegex = makeRegex("'(?:[^']|'')*'")
+    // Strings never cross a newline: SQL literals don't span lines here, and
+    // bounding them keeps an apostrophe inside a comment ('don't') from
+    // opening a phantom string that swallows following lines.
+    private static let stringRegex = makeRegex("'(?:[^'\\n]|'')*'")
     private static let quotedIdentifierRegex = makeRegex("\"(?:[^\"]|\"\")*\"")
     private static let numberRegex = makeRegex("\\b\\d+(?:\\.\\d+)?\\b")
     private static let identifierRegex = makeRegex("[A-Za-z_][A-Za-z_0-9]*")
@@ -45,8 +48,12 @@ enum SQLHighlighter {
         let text = textStorage.string
         guard (text as NSString).length > 0 else { return }
 
-        var claimed = ranges(of: .comment, in: text)
-        claim(&claimed, unclaimed(ranges(of: .string, in: text), avoiding: claimed))
+        // Strings are claimed before comments so a `--` inside a literal
+        // (e.g. 'a -- b') can never swallow the rest of the line as a comment;
+        // commentRanges() rescans past such literals so a genuine trailing
+        // comment on the same line still colors.
+        var claimed = ranges(of: .string, in: text)
+        claim(&claimed, commentRanges(in: text, avoiding: claimed))
         claim(&claimed, unclaimed(ranges(of: .quotedIdentifier, in: text), avoiding: claimed))
         claim(&claimed, unclaimed(ranges(of: .number, in: text), avoiding: claimed))
 
@@ -65,6 +72,11 @@ enum SQLHighlighter {
         for token in tokens {
             textStorage.addAttribute(.foregroundColor, value: token.color, range: token.range)
         }
+    }
+
+    /// Token color for tests and callers that need the palette without a range.
+    static func color(for kind: TokenKind) -> NSColor {
+        colors[kind]!
     }
 
     /// The color of a claimed (non-keyword) token, inferred from its source text.
@@ -107,6 +119,34 @@ enum SQLHighlighter {
     /// Keyword ranges that do not overlap any already-claimed range.
     static func keywordRanges(in text: String, avoiding reserved: [NSRange]) -> [NSRange] {
         unclaimed(ranges(of: .keyword, in: text), avoiding: reserved)
+    }
+
+    /// Comment ranges claimed after strings. A raw candidate that begins
+    /// inside an already-claimed literal (`SELECT 'a -- b' -- tail`) is
+    /// re-scanned from the literal's end so the genuine trailing comment is
+    /// kept; candidates that merely intersect a claimed token are dropped.
+    static func commentRanges(in text: String, avoiding claimed: [NSRange]) -> [NSRange] {
+        let ns = text as NSString
+        guard !claimed.isEmpty else { return ranges(of: .comment, in: text) }
+
+        func intersects(_ a: NSRange, _ b: NSRange) -> Bool {
+            (a.intersection(b)?.length ?? 0) > 0
+        }
+
+        var results: [NSRange] = []
+        for candidate in ranges(of: .comment, in: text) {
+            if let container = claimed.first(where: { NSLocationInRange(candidate.location, $0) }) {
+                let scanStart = NSMaxRange(container)
+                guard scanStart < ns.length else { continue }
+                let scanRange = NSRange(location: scanStart, length: ns.length - scanStart)
+                for match in commentRegex.matches(in: text, range: scanRange) where !claimed.contains(where: { intersects($0, match.range) }) {
+                    results.append(match.range)
+                }
+            } else if !claimed.contains(where: { intersects($0, candidate) }) {
+                results.append(candidate)
+            }
+        }
+        return results
     }
 
     private static func unclaimed(_ candidates: [NSRange], avoiding reserved: [NSRange]) -> [NSRange] {

@@ -348,6 +348,24 @@ final class WorkspaceTests: XCTestCase {
 
     // MARK: - Tab lifecycle
 
+    /// Regression guard for connection switching: WorkspaceView recreates its
+    /// whole view model per connection (`.id(connection.id)`), so each fresh
+    /// bootstrap must bind tabs strictly to the connection it was created for.
+    func testFreshViewModelBootstrapsTabsBoundToRespectiveConnectionIds() {
+        let provider = FakeDriverProvider()
+        let firstVM = WorkspaceViewModel(drivers: provider)
+        let secondVM = WorkspaceViewModel(drivers: provider)
+        let otherConnectionId = UUID()
+
+        let firstTab = firstVM.openQueryTab(connectionId: connectionId)
+        let secondTab = secondVM.openQueryTab(connectionId: otherConnectionId)
+
+        XCTAssertEqual(firstVM.tabs.map(\.connectionId), [connectionId])
+        XCTAssertEqual(secondVM.tabs.map(\.connectionId), [otherConnectionId])
+        XCTAssertEqual(firstVM.activeTab?.id, firstTab.id)
+        XCTAssertEqual(secondVM.activeTab?.id, secondTab.id)
+    }
+
     func testOpenQueryTabReusesExistingFreeTabPerConnection() {
         let provider = FakeDriverProvider()
         let vm = WorkspaceViewModel(drivers: provider)

@@ -62,6 +62,34 @@ final class SQLHighlighterTests: XCTestCase {
         XCTAssertTrue(SQLHighlighter.keywordRanges(in: text, avoiding: claimedTokens(in: text)).isEmpty)
     }
 
+    /// Strings are claimed before comments, so `--` inside a literal never
+    /// swallows the rest of the line as a comment.
+    func testCommentMarkerInsideStringIsNotComment() throws {
+        let text = "SELECT 'a -- b' -- tail"
+        let storage = NSTextStorage(string: text)
+        SQLHighlighter.apply(to: storage)
+
+        func attrColor(_ needle: String) -> NSColor? {
+            let r = range(of: needle, in: storage.string)
+            guard r.location != NSNotFound else { return nil }
+            return storage.attribute(.foregroundColor, at: r.location, effectiveRange: nil) as? NSColor
+        }
+
+        // range(of:) finds the FIRST "-- b", i.e. the one inside the literal.
+        let inStringLengthColor = try XCTUnwrap(attrColor("-- b"))
+        XCTAssertEqual(inStringLengthColor, SQLHighlighter.color(for: .string))
+        XCTAssertNotEqual(inStringLengthColor, SQLHighlighter.color(for: .comment))
+
+        XCTAssertEqual(try XCTUnwrap(attrColor("tail")), SQLHighlighter.color(for: .comment))
+    }
+
+    func testDoubledQuoteStillEndsStringBeforeTrailingContent() {
+        let text = #"SELECT 'it''s -- fine', 1 -- real comment"#
+        let strings = SQLHighlighter.ranges(of: .string, in: text)
+        XCTAssertEqual(strings.count, 1)
+        XCTAssertEqual(strings.first, range(of: #"'it''s -- fine'"#, in: text))
+    }
+
     func testNumbersInsideStringsAreNotNumbers() {
         let text = "'abc123'"
         XCTAssertTrue(SQLHighlighter.ranges(of: .number, in: text).isEmpty)

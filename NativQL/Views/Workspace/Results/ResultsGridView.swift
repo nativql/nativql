@@ -54,6 +54,7 @@ struct ResultsGridView: NSViewRepresentable {
         guard let table = scrollView.documentView as? ResultsTableView else { return }
 
         coordinator.rebuildColumnsIfNeeded(in: table)
+        coordinator.syncSortPrototypes(in: table)
         if coordinator.reloadKey != reloadKey || table.numberOfRows != rows.count {
             coordinator.reloadKey = reloadKey
             table.reloadData()
@@ -148,9 +149,36 @@ struct ResultsGridView: NSViewRepresentable {
                 column.minWidth = 60
                 column.maxWidth = 1_000
                 column.resizingMask = [.userResizingMask, .autoresizingMask]
-                // Enables header-click sorting via the sortDescriptors machinery.
-                column.sortDescriptorPrototype = NSSortDescriptor(key: columnInfo.name, ascending: true)
+                // Header-click sorting rides the sortDescriptors machinery;
+                // prototypes exist only in browse mode so a click on a
+                // free-query header can never flash-sort the rows client-side.
+                if parent.allowsSort {
+                    column.sortDescriptorPrototype = NSSortDescriptor(key: columnInfo.name, ascending: true)
+                }
                 table.addTableColumn(column)
+            }
+        }
+
+        /// Installs or clears header sort prototypes as `allowsSort` flips
+        /// between browse and free-query tabs sharing an identical column set.
+        func syncSortPrototypes(in table: NSTableView) {
+            for column in table.tableColumns {
+                let desired: NSSortDescriptor? = parent.allowsSort
+                    ? NSSortDescriptor(key: column.identifier.rawValue, ascending: true)
+                    : nil
+                let current = column.sortDescriptorPrototype
+                let isUpToDate: Bool
+                switch (current, desired) {
+                case (nil, nil):
+                    isUpToDate = true
+                case (let existing?, let wanted?):
+                    isUpToDate = existing.key == wanted.key && existing.ascending == wanted.ascending
+                default:
+                    isUpToDate = false
+                }
+                if !isUpToDate {
+                    column.sortDescriptorPrototype = desired
+                }
             }
         }
 

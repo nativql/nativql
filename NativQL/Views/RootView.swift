@@ -42,6 +42,11 @@ struct ConnectionDetailView: View {
                 tree
                 Divider()
                 WorkspaceView(connectionId: connection.id)
+                    // Recreates the workspace (and its @State view model) when
+                    // the detail switches to another connection; without this,
+                    // stable structural identity lets the old VM survive and
+                    // bootstrapIfNeeded() early-returns.
+                    .id(connection.id)
             }
         }
         .toolbar {
