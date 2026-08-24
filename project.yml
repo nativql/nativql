@@ -4,6 +4,7 @@ options:
   deploymentTarget:
     macOS: "14.0"
   createIntermediateGroups: true
+  transitivelyLinkDependencies: true
 packages:
   NativQLKit:
     path: Packages/NativQLKit

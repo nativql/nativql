@@ -7,10 +7,13 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		20001A09C1A4DEFA7344F1EB /* NativQLKit in Frameworks */ = {isa = PBXBuildFile; productRef = F6338A038D70441EDADB3A16 /* NativQLKit */; };
-		4DDD8F20FACA21FE5D2FDE9E /* MySQLDriver in Frameworks */ = {isa = PBXBuildFile; productRef = 4904FE4D6986583CB52C78B0 /* MySQLDriver */; };
-		5CC225895A1AA0BCBEF49C5A /* PostgresDriver in Frameworks */ = {isa = PBXBuildFile; productRef = 54816D600B3AECA69AA056D9 /* PostgresDriver */; };
+		20001A09C1A4DEFA7344F1EB /* MySQLDriver in Frameworks */ = {isa = PBXBuildFile; productRef = 4904FE4D6986583CB52C78B0 /* MySQLDriver */; };
+		4DDD8F20FACA21FE5D2FDE9E /* PostgresDriver in Frameworks */ = {isa = PBXBuildFile; productRef = 54816D600B3AECA69AA056D9 /* PostgresDriver */; };
+		5CC225895A1AA0BCBEF49C5A /* NativQLKit in Frameworks */ = {isa = PBXBuildFile; productRef = F6338A038D70441EDADB3A16 /* NativQLKit */; };
+		95BF5ACA2A8ED0244DE56170 /* DatabaseConnectionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0EF2FC3677C42D91FE3DFC8E /* DatabaseConnectionManager.swift */; };
+		96AE2A53D7CDDB1E69F1ADD4 /* AppShellTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC469FC25BEA4D43EBFDB476 /* AppShellTests.swift */; };
 		AD7AF14BB37E9155F1E6BA92 /* SmokeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE9F97BDAC3A1CE10014A63A /* SmokeTests.swift */; };
+		B45CDB21D55EF62D5ACE4D23 /* ConnectionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B564F1C47409C54626ECE76 /* ConnectionStore.swift */; };
 		BF8D572B1FE2BBC289BE7C0D /* NativQLApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = E08BB443FDF7763932642B19 /* NativQLApp.swift */; };
 /* End PBXBuildFile section */
 
@@ -25,11 +28,14 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		0EF2FC3677C42D91FE3DFC8E /* DatabaseConnectionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatabaseConnectionManager.swift; sourceTree = "<group>"; };
 		181179E416692E2C616FCDD5 /* NativQLTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = NativQLTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		264E9286DE39E1043FCC1B38 /* NativQLKit */ = {isa = PBXFileReference; lastKnownFileType = folder; name = NativQLKit; path = Packages/NativQLKit; sourceTree = SOURCE_ROOT; };
 		28117378309ECF9BC8605BAD /* NativQL.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = NativQL.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		6E26847049E070F5C89CFB21 /* MySQLDriver */ = {isa = PBXFileReference; lastKnownFileType = folder; name = MySQLDriver; path = Packages/MySQLDriver; sourceTree = SOURCE_ROOT; };
+		8B564F1C47409C54626ECE76 /* ConnectionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectionStore.swift; sourceTree = "<group>"; };
 		A63B4A3A6F37FCA3D46B4B38 /* PostgresDriver */ = {isa = PBXFileReference; lastKnownFileType = folder; name = PostgresDriver; path = Packages/PostgresDriver; sourceTree = SOURCE_ROOT; };
+		AC469FC25BEA4D43EBFDB476 /* AppShellTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppShellTests.swift; sourceTree = "<group>"; };
 		E08BB443FDF7763932642B19 /* NativQLApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativQLApp.swift; sourceTree = "<group>"; };
 		EE9F97BDAC3A1CE10014A63A /* SmokeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SmokeTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -39,15 +45,23 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				20001A09C1A4DEFA7344F1EB /* NativQLKit in Frameworks */,
-				5CC225895A1AA0BCBEF49C5A /* PostgresDriver in Frameworks */,
-				4DDD8F20FACA21FE5D2FDE9E /* MySQLDriver in Frameworks */,
+				20001A09C1A4DEFA7344F1EB /* MySQLDriver in Frameworks */,
+				5CC225895A1AA0BCBEF49C5A /* NativQLKit in Frameworks */,
+				4DDD8F20FACA21FE5D2FDE9E /* PostgresDriver in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		0AB49F7E453E1E7585F4C9EC /* Persistence */ = {
+			isa = PBXGroup;
+			children = (
+				8B564F1C47409C54626ECE76 /* ConnectionStore.swift */,
+			);
+			path = Persistence;
+			sourceTree = "<group>";
+		};
 		0CB863D3EF32DB749EE99EAE = {
 			isa = PBXGroup;
 			children = (
@@ -67,6 +81,14 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
+		420BBDF17F5FEB3180C8F4AB /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				0EF2FC3677C42D91FE3DFC8E /* DatabaseConnectionManager.swift */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
 		548DA68C725BD1E9035BEB66 /* Packages */ = {
 			isa = PBXGroup;
 			children = (
@@ -81,6 +103,8 @@
 			isa = PBXGroup;
 			children = (
 				E08BB443FDF7763932642B19 /* NativQLApp.swift */,
+				0AB49F7E453E1E7585F4C9EC /* Persistence */,
+				420BBDF17F5FEB3180C8F4AB /* Services */,
 			);
 			path = NativQL;
 			sourceTree = "<group>";
@@ -88,6 +112,7 @@
 		D88B503CD5DC183F324C9FF2 /* NativQLTests */ = {
 			isa = PBXGroup;
 			children = (
+				AC469FC25BEA4D43EBFDB476 /* AppShellTests.swift */,
 				EE9F97BDAC3A1CE10014A63A /* SmokeTests.swift */,
 			);
 			path = NativQLTests;
@@ -127,9 +152,9 @@
 			);
 			name = NativQL;
 			packageProductDependencies = (
+				4904FE4D6986583CB52C78B0 /* MySQLDriver */,
 				F6338A038D70441EDADB3A16 /* NativQLKit */,
 				54816D600B3AECA69AA056D9 /* PostgresDriver */,
-				4904FE4D6986583CB52C78B0 /* MySQLDriver */,
 			);
 			productName = NativQL;
 			productReference = 28117378309ECF9BC8605BAD /* NativQL.app */;
@@ -179,6 +204,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				96AE2A53D7CDDB1E69F1ADD4 /* AppShellTests.swift in Sources */,
 				AD7AF14BB37E9155F1E6BA92 /* SmokeTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -187,6 +213,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				B45CDB21D55EF62D5ACE4D23 /* ConnectionStore.swift in Sources */,
+				95BF5ACA2A8ED0244DE56170 /* DatabaseConnectionManager.swift in Sources */,
 				BF8D572B1FE2BBC289BE7C0D /* NativQLApp.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
